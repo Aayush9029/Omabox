@@ -13,11 +13,11 @@
 </p>
 
 <p align="center">
-  <img src="Docs/images/home.png" width="1100" alt="Omabox home with CPU and memory presets, Linux configuration files, and sharing controls">
+  <img src="Docs/images/home.jpg" width="1100" alt="Omabox home">
 </p>
 
 <p align="center">
-  <img src="Docs/images/settings.png" width="1100" alt="Omabox Settings with native controls, a translucent sidebar, and artwork">
+  <img src="Docs/images/settings.jpg" width="1100" alt="Omabox settings">
 </p>
 
 Requires **macOS 26 or later** and **Apple silicon**.

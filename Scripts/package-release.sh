@@ -12,7 +12,7 @@ if [[ -n ${OMABOX_NOTARY_KEYCHAIN_PATH:-} ]]; then
 fi
 release_verify_app "$release_app"
 python3 "$release_root/Scripts/verify-guest.py" "$release_app/Contents/Resources/Guest"
-for release_license in LICENSE THIRD_PARTY_NOTICES.md; do
+for release_license in LICENSE THIRD_PARTY_NOTICES.md LICENSES/ThirdParty-MIT.txt; do
     [[ -f "$release_root/$release_license" ]] || release_die "Missing distribution notice: $release_license"
 done
 release_claim_destination "$release_output"
@@ -41,6 +41,7 @@ ln -s /Applications "$package_stage/Applications"
 mkdir "$package_stage/Licenses"
 cp "$release_root/LICENSE" "$package_stage/Licenses/Omabox-LICENSE.txt"
 cp "$release_root/THIRD_PARTY_NOTICES.md" "$package_stage/Licenses/THIRD_PARTY_NOTICES.md"
+cp "$release_root/LICENSES/ThirdParty-MIT.txt" "$package_stage/Licenses/ThirdParty-MIT.txt"
 for release_notice in LICENSE.omarchy packages.lock.txt provenance.json guest-manifest.json build-spec.json metadata.json; do
     cp "$release_app/Contents/Resources/Guest/$release_notice" "$package_stage/Licenses/$release_notice"
 done
@@ -133,6 +134,7 @@ xcrun stapler validate "$package_mount/Omabox.app"
 [[ $(readlink "$package_mount/Applications") == /Applications ]] || release_die 'The disk image is missing its Applications link.'
 cmp "$release_root/LICENSE" "$package_mount/Licenses/Omabox-LICENSE.txt"
 cmp "$release_root/THIRD_PARTY_NOTICES.md" "$package_mount/Licenses/THIRD_PARTY_NOTICES.md"
+cmp "$release_root/LICENSES/ThirdParty-MIT.txt" "$package_mount/Licenses/ThirdParty-MIT.txt"
 hdiutil detach "$package_mount"
 package_mounted=0
 
