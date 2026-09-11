@@ -4,13 +4,13 @@ Validated on September 10–11, 2026 using an Apple M4 Pro MacBook Pro with 14 C
 
 ## Current revision status
 
-Version `0.1.0` build `5` completed its Developer ID signed archive and export. Factory version `0.3.0`, integration version `3`, passed configuration and SSH checks with disk SHA-256 `7caa1d08ced52c191aa3cceb84015a8e9e5ee67cf2f5751af70e275d6e6d79cb`. The 165-case Swift suite, 108 Python checks, native Home/editor integration, and full-screen transition recovery passed. Both README screenshots were refreshed from the final exported app. Results from preceding revisions are identified separately below.
+Version `0.1.0` build `7` completed its Developer ID signed archive and export. Factory version `0.3.0`, integration version `3`, passed configuration and SSH checks with disk SHA-256 `7caa1d08ced52c191aa3cceb84015a8e9e5ee67cf2f5751af70e275d6e6d79cb`. The 168-case Swift suite, 108 Python checks, native Home/editor integration, and full-screen transition recovery passed. Both README screenshots show the current Home and Settings layouts. Results from preceding revisions are identified separately below.
 
 ## Release build
 
-The final Developer ID signed build `0.1.0 (5)` passes strict signature and release checks. It contains only arm64 code, targets macOS 26, and has App Sandbox, Hardened Runtime, and a secure signing timestamp. The app has virtualization, outbound networking, microphone input, and user-selected file/bookmark entitlements. It does not have debugger attachment, JIT, unsigned executable memory, library validation exceptions, or bridged networking entitlements. Debugger attachment remains available for Debug builds and tests.
+The final Developer ID signed build `0.1.0 (7)` passes strict signature and release checks. It contains only arm64 code, targets macOS 26, and has App Sandbox, Hardened Runtime, and a secure signing timestamp. The app has virtualization, outbound networking, microphone input, and user-selected file/bookmark entitlements. It does not have debugger attachment, JIT, unsigned executable memory, library validation exceptions, or bridged networking entitlements. Debugger attachment remains available for Debug builds and tests.
 
-The archive is `build/Archives/Omabox-0.1.0-5.xcarchive`; the exported app is `build/Export/Omabox-0.1.0-5/Omabox.app`. Both contain the verified factory `0.3.0` disk with the exact SHA-256 above. Notarization and installation on a second Mac have not been performed.
+The archive is `build/Archives/Omabox-0.1.0-7.xcarchive`; the exported app is `build/Export/Omabox-0.1.0-7/Omabox.app`. Both contain the verified factory `0.3.0` disk with the exact SHA-256 above. Notarization and installation on a second Mac have not been performed.
 
 ## Native guest
 
@@ -40,9 +40,9 @@ The manual integration updater preserved the recorded owner, removed managed aut
 
 ## Unit tests
 
-All 114 Swift test functions passed across 14 suites, covering 165 cases after expanding parameterized tests, with zero recorded issues. Coverage includes atomic installation, disk preservation, VM lifecycle failures, exclusive disk ownership, resource limits, preference migration, clipboard framing, command search, input routing, and immediate host-menu focus. The current regressions also cover native home/runtime geometry, resolution navigation, SSH lifecycle and filesystem ownership, and Linux configuration file creation, preservation, validation, and editor errors.
+All 116 Swift test functions passed across 14 suites, covering 168 cases after expanding parameterized tests, with zero recorded issues. Coverage includes atomic installation, disk preservation, VM lifecycle failures, exclusive disk ownership, resource limits, preference migration, clipboard framing, command search, input routing, and immediate host-menu focus. The current regressions also cover native window-update recovery after SwiftUI clears size limits, preservation of full-screen and resolution state, native home/runtime geometry, resolution navigation, SSH lifecycle and filesystem ownership, and Linux configuration file creation, preservation, validation, and editor errors.
 
-The latest run used a fresh Debug build-for-testing and loaded its app library and test bundle through Swift Testing's stable tools ABI. A minimal AppKit context with activation prohibited supported hidden-window geometry, real SwiftUI hosting, and immediate-focus regressions. It did not launch Omabox's application entry point, start a VM, or require the stalled Xcode test daemon. Evidence, tested binary hashes, raw events, exact invocation, and counted completions are in `Artifacts/Overnight/UI/configuration-home-regressions/`; the process exited 0. The runner methodology is documented in `Artifacts/Overnight/UI/UnitTesting.md`. Earlier runtime/SSH, palette-focus, and quit/resume runs remain in their artifact directories, and the 39-case Xcode run is preserved separately in `Artifacts/Validation/unit-results.json`.
+The latest run used a fresh Debug build-for-testing and loaded its app library and test bundle through Swift Testing's stable tools ABI. A minimal AppKit context with activation prohibited supported hidden-window geometry, real SwiftUI hosting, and immediate-focus regressions. It did not launch Omabox's application entry point, start a VM, or require the stalled Xcode test daemon. Evidence, tested binary hashes, raw events, exact invocation, and counted completions are in `Artifacts/Overnight/UI/ci-window-constraint-regressions/`; the process exited 0. The runner methodology is documented in `Artifacts/Overnight/UI/UnitTesting.md`. Earlier runtime/SSH, palette-focus, and quit/resume runs remain in their artifact directories, and the 39-case Xcode run is preserved separately in `Artifacts/Validation/unit-results.json`.
 
 All 108 Python checks passed: 68 guest-service tests, 16 clipboard-service tests, and 24 release-verifier tests. The final `Scripts/ci.sh guest` run exited 0; its log is `/tmp/omabox-integration3-ci-final.log`.
 
@@ -76,7 +76,7 @@ Build 3 verified Control-Option-Command-K from guest focus with keyboard capture
 
 ## README screenshot method
 
-The README contains exactly two refreshed images, `Docs/images/home.png` and `Docs/images/settings.png`. Each is an opaque 2240 × 1440 PNG showing the actual desktop wallpaper on the same 1120 × 720-point canvas. Home is centered at 880 × 560 points and Settings at 720 × 500 points. Other windows were hidden, and Home was minimized for the Settings capture.
+The README contains exactly two refreshed images captured from Developer ID signed build 5, `Docs/images/home.png` and `Docs/images/settings.png`. Each is an opaque 2240 × 1440 PNG showing the actual desktop wallpaper on the same 1120 × 720-point canvas. Home is centered at 880 × 560 points and Settings at 720 × 500 points. Other windows were hidden, and Home was minimized for the Settings capture.
 
 Each native ScreenCaptureKit capture started with a five-second timer; the target window was then raised and focused through its noninteractive content or General settings. Only CUA's software cursor overlay windows were excluded by the capture filter. Both final images were inspected and show focused traffic lights, clean wallpaper, and no cursors or other windows.
 

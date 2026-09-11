@@ -402,6 +402,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         windowPresentation?.recordDesktopFrame()
     }
 
+    func windowDidUpdate(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.reassertWindowedSizeLimits()
+    }
+
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
         windowPresentation?.recordDesktopFrame()

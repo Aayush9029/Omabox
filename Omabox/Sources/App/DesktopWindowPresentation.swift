@@ -5,6 +5,7 @@ import OSLog
 final class DesktopWindowPresentation {
     static let homeSize = NSSize(width: 880, height: 560)
     static let minimumDesktopSize = NSSize(width: 320, height: 240)
+    private static let maximumDesktopSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
 
     private weak var window: NSWindow?
     private let frameAutosaveName: String?
@@ -25,6 +26,7 @@ final class DesktopWindowPresentation {
     func update(showsDesktop: Bool) {
         requestedDesktop = showsDesktop
         guard self.showsDesktop != showsDesktop else {
+            reassertWindowedSizeLimits()
             updateWindowButtons()
             return
         }
@@ -33,6 +35,14 @@ final class DesktopWindowPresentation {
             return
         }
         applyRequestedPresentation(captureCurrentFrame: true)
+    }
+
+    func reassertWindowedSizeLimits() {
+        guard let window, isWindowed, !isApplyingFrame else { return }
+        let minimumSize = showsDesktop ? Self.minimumDesktopSize : Self.homeSize
+        let maximumSize = showsDesktop ? Self.maximumDesktopSize : Self.homeSize
+        if window.minSize != minimumSize { window.minSize = minimumSize }
+        if window.maxSize != maximumSize { window.maxSize = maximumSize }
     }
 
     func recordDesktopFrame() {
@@ -120,6 +130,7 @@ final class DesktopWindowPresentation {
         requestsWindowedPresentation = false
         if showsDesktop, requestedDesktop { restoreDesktopFrame() }
         applyRequestedPresentation(captureCurrentFrame: false)
+        reassertWindowedSizeLimits()
         updateWindowButtons()
     }
 
@@ -130,7 +141,7 @@ final class DesktopWindowPresentation {
             window.collectionBehavior.remove(.fullScreenNone)
             window.collectionBehavior.insert(.fullScreenPrimary)
             window.minSize = Self.minimumDesktopSize
-            window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            window.maxSize = Self.maximumDesktopSize
             window.aspectRatio = .zero
             window.resizeIncrements = NSSize(width: 1, height: 1)
             showsDesktop = true

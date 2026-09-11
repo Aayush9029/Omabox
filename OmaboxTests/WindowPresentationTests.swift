@@ -44,20 +44,113 @@ struct WindowPresentationTests {
             window.close()
         }
         let presentation = DesktopWindowPresentation(window: window, frameAutosaveName: nil)
+        let delegate = WindowPresentationTestDelegate(presentation: presentation)
+        window.delegate = delegate
         host.layoutSubtreeIfNeeded()
-        expectWindowSize(window, NSSize(width: 880, height: 560))
+        window.update()
+        expectNoDifference(window.frame.size, NSSize(width: 880, height: 560))
+        expectNoDifference(host.bounds.size, NSSize(width: 880, height: 560))
 
         model.$preferences.cpuCount.withLock { $0 = 2 }
         model.errorMessage = "A setup failure can be shown without changing the window size."
         await Task.yield()
         host.needsLayout = true
         host.layoutSubtreeIfNeeded()
-        presentation.update(showsDesktop: false)
+        window.update()
 
-        expectWindowSize(window, NSSize(width: 880, height: 560))
+        expectNoDifference(window.frame.size, NSSize(width: 880, height: 560))
+        expectNoDifference(host.bounds.size, NSSize(width: 880, height: 560))
         expectNoDifference(window.minSize, NSSize(width: 880, height: 560))
         expectNoDifference(window.maxSize, NSSize(width: 880, height: 560))
+        #expect(delegate.updateCount >= 2)
         #expect(model.virtualMachine == nil)
+        #expect(!window.isVisible)
+    }
+
+    @Test func nativeWindowUpdatesRestoreClearedLimitsWithoutChangingTheFrameOrPreset() {
+        let window = makeWindow()
+        defer { window.close() }
+        let presentation = DesktopWindowPresentation(window: window, frameAutosaveName: nil)
+        let delegate = WindowPresentationTestDelegate(presentation: presentation)
+        window.delegate = delegate
+        let homeFrame = window.frame
+        window.minSize = .zero
+        window.maxSize = unlimitedSize
+
+        window.update()
+
+        #expect(delegate.updateCount > 0)
+        expectNoDifference(window.minSize, DesktopWindowPresentation.homeSize)
+        expectNoDifference(window.maxSize, DesktopWindowPresentation.homeSize)
+        expectNoDifference(window.frame, homeFrame)
+        #expect(!window.styleMask.contains(.resizable))
+
+        presentation.update(showsDesktop: true)
+        window.aspectRatio = NSSize(width: 512, height: 320)
+        presentation.resizeContent(to: NSSize(width: 512, height: 320))
+        let desktopFrame = window.frame
+        window.minSize = .zero
+        window.maxSize = NSSize(width: 4096, height: 4096)
+
+        window.update()
+        window.update()
+
+        expectNoDifference(window.minSize, DesktopWindowPresentation.minimumDesktopSize)
+        expectNoDifference(window.maxSize, unlimitedSize)
+        expectNoDifference(window.frame, desktopFrame)
+        expectNoDifference(window.aspectRatio, NSSize(width: 512, height: 320))
+        #expect(window.styleMask.contains(.resizable))
+        presentation.update(showsDesktop: false)
+        presentation.update(showsDesktop: true)
+        expectNoDifference(window.frame, desktopFrame)
+        #expect(!window.isVisible)
+    }
+
+    @Test(arguments: [false, true])
+    func nativeWindowUpdatesLeaveFullscreenLimitsAloneUntilWindowed(showsHomeOnExit: Bool) {
+        let window = makeWindow()
+        defer { window.close() }
+        let presentation = DesktopWindowPresentation(window: window, frameAutosaveName: nil)
+        let delegate = WindowPresentationTestDelegate(presentation: presentation)
+        window.delegate = delegate
+        presentation.update(showsDesktop: true)
+        window.aspectRatio = NSSize(width: 512, height: 320)
+        presentation.resizeContent(to: NSSize(width: 512, height: 320))
+        let desktopFrame = window.frame
+        presentation.willEnterFullScreen()
+        let systemMinimum = NSSize(width: 13, height: 17)
+        let systemMaximum = NSSize(width: 4096, height: 4096)
+        window.minSize = systemMinimum
+        window.maxSize = systemMaximum
+
+        window.update()
+        expectNoDifference(window.minSize, systemMinimum)
+        expectNoDifference(window.maxSize, systemMaximum)
+        window.reportsFullScreen = true
+        presentation.didEnterFullScreen()
+        window.update()
+        expectNoDifference(window.minSize, systemMinimum)
+        expectNoDifference(window.maxSize, systemMaximum)
+        if showsHomeOnExit { presentation.update(showsDesktop: false) }
+        presentation.willExitFullScreen()
+        window.update()
+        expectNoDifference(window.minSize, systemMinimum)
+        expectNoDifference(window.maxSize, systemMaximum)
+
+        window.reportsFullScreen = false
+        presentation.didExitFullScreen()
+        window.update()
+
+        if showsHomeOnExit {
+            expectNoDifference(window.minSize, DesktopWindowPresentation.homeSize)
+            expectNoDifference(window.maxSize, DesktopWindowPresentation.homeSize)
+            expectWindowSize(window, DesktopWindowPresentation.homeSize)
+        } else {
+            expectNoDifference(window.minSize, DesktopWindowPresentation.minimumDesktopSize)
+            expectNoDifference(window.maxSize, unlimitedSize)
+            expectNoDifference(window.frame, desktopFrame)
+            expectNoDifference(window.aspectRatio, NSSize(width: 512, height: 320))
+        }
         #expect(!window.isVisible)
     }
 
@@ -275,6 +368,10 @@ struct WindowPresentationTests {
     }
 
     private var buttons: [NSWindow.ButtonType] { [.closeButton, .miniaturizeButton, .zoomButton] }
+
+    private var unlimitedSize: NSSize {
+        NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+    }
 
     private func expectWindowSize(_ window: NSWindow, _ expected: NSSize) {
         window.contentView?.layoutSubtreeIfNeeded()
