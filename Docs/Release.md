@@ -1,39 +1,50 @@
 # Release Omabox
 
-The release pipeline produces a Developer ID signed, notarized, arm64-only disk image for macOS 26 and later. The release scripts use an Xcode archive and Developer ID export. They verify the factory guest, the app’s signature and entitlements, and the final mounted image. They do not create or publish a GitHub release themselves.
+Omabox ships as a Developer ID signed and notarized Apple silicon DMG for macOS 26 or later. App Sandbox and Hardened Runtime remain enabled in distribution builds.
 
-## Release Mac
+## Automatic releases
 
-Use a physical Apple silicon Mac with macOS 26 or later, Xcode selected through `xcode-select`, the repository’s pinned Tuist version, and Python 3.9 or later. Guest preparation and validation require Apple Virtualization support. Keep sufficient free space for the factory, archive, exported app, staging app, and compressed images; a clean release may need 35 GB or more.
+Pushing to `main` starts [CI](../.github/workflows/ci.yml). Once its guest checks and native build/tests pass, [Release](../.github/workflows/release.yml) packages that exact commit on a hosted macOS runner. The workflow checks that the commit is still the current `main` before publishing.
 
-Install the Developer ID Application certificate and its private key on the release Mac ahead of time. The selected Keychain must be unlocked and allow the signing tools to use that identity. Create a `notarytool` Keychain profile separately. The scripts do not import certificates, export keys, or store credentials in the repository.
+Each release uses the next available patch version. After `v0.1.0`, the next release is `v0.1.1`. Build numbers start above the initial build 10. Releases run serially, and retrying an already published commit does not publish another version. An abandoned automation draft reserves its version; a newer commit skips it without changing the draft. The workflow can also be started manually to retry the current `main` after its CI succeeds.
 
-## Configuration
+The workflow archives the app, exports it with Xcode's Developer ID method, notarizes and staples the app, then creates, signs, notarizes, and staples the DMG. The release remains a draft until the verified DMG, `SHA256SUMS`, and `release-manifest.json` are attached. The README download button follows the latest published release.
 
-Set these environment variables for all three commands:
+Configure these repository secrets and variables in GitHub Actions settings:
 
-| Variable | Required | Meaning |
+| Name | Type | Value |
 | --- | --- | --- |
-| `OMABOX_VERSION` | Yes | Numeric app version, such as `0.1.0`. Release tags use three components. |
-| `OMABOX_BUILD_NUMBER` | Yes | Positive integer build number. CI uses `github.run_number`. |
-| `OMABOX_SIGNING_IDENTITY` | Yes | Full Developer ID Application certificate name or SHA-1 fingerprint. |
-| `OMABOX_TEAM_ID` | No | Apple development team; defaults to `4538W4A79B`. |
-| `OMABOX_KEYCHAIN_PATH` | No | Signing Keychain path when an explicit Keychain is needed. Export also requires the identity to be available in the user’s Keychain search list. |
-| `OMABOX_NOTARY_PROFILE` | Packaging | Existing `notarytool` Keychain profile name. |
-| `OMABOX_NOTARY_KEYCHAIN_PATH` | No | Keychain containing that notarization profile. |
-| `OMABOX_NOTARY_TIMEOUT` | No | Maximum wait per notarization submission, default `30m`. |
-| `OMABOX_ARCHIVE_PATH` | No | Archive destination; defaults to `build/Archives/Omabox-VERSION-BUILD.xcarchive`. |
-| `OMABOX_EXPORT_PATH` | No | Export destination directory; defaults to `build/Export/Omabox-VERSION-BUILD`. |
-| `OMABOX_RELEASE_PATH` | No | Package destination directory; defaults to `build/Release/Omabox-VERSION-BUILD`. |
-| `OMABOX_DERIVED_DATA_PATH` | No | Archive build cache; defaults to `build/DerivedData-Release`. |
+| `APPLE_CERTIFICATE_P12` | Secret | Base64-encoded Developer ID Application certificate and private key, exported with an empty P12 password. |
+| `APPLE_API_KEY_P8` | Secret | Base64-encoded App Store Connect API private key. |
+| `APPLE_API_KEY_ID` | Secret | API key identifier. |
+| `APPLE_API_ISSUER_ID` | Secret | API issuer identifier. |
+| `OMABOX_TEAM_ID` | Variable | Apple development team identifier. |
+| `OMABOX_SIGNING_IDENTITY` | Variable | Full Developer ID Application identity name. |
 
-Relative paths are resolved against the repository root. Destinations must not already exist. Each command reserves its destination with a sibling `.lock` directory so simultaneous invocations cannot write the same output. Successful output and failed partial output are preserved for inspection; choose a new destination or remove an inspected failed attempt before retrying. A process killed without cleanup may leave its reservation behind.
+Credentials are imported into a temporary runner Keychain. Cleanup restores the previous Keychain search list and removes the temporary credentials. Pull request checks do not receive signing secrets.
+
+## Prepared Linux guest
+
+Hosted Apple silicon runners do not support the nested virtualization needed to prepare the Linux factory. The release workflow imports the already prepared guest from a pinned Omabox DMG instead. [GitHub runner limitations](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+
+[Guest/prepared-release.json](../Guest/prepared-release.json) pins the DMG URL, byte count, SHA-256, guest metadata and payload hashes, and a hash of the guest build inputs. The importer verifies the download before mounting it read-only, extracts only the guest resources, and verifies them again before making them available to the build. It refuses to overwrite an existing guest directory.
+
+Changes to the guest overlay, source pins, or preparation scripts invalidate the build-input hash. To update the factory:
+
+1. Prepare and test the new guest on a physical Apple silicon Mac using the local commands below.
+2. Package and publish a verified release containing that factory.
+3. Update the prepared-release manifest with that immutable DMG's URL, final byte count and SHA-256, and the new guest metadata. Obtain the build-input hash with `python3 Scripts/fetch-release-guest.py --print-source-hash`.
+4. Test the importer in a clean checkout before pushing the updated pin.
+
+Keep the pinned release asset available; future app releases depend on it. The workflow removes intermediate guest, archive, and export copies as their consumers finish to limit runner disk usage.
 
 ## Local archive and package
 
+Use a physical Apple silicon Mac with macOS 26 or later, Xcode selected through `xcode-select`, the repository's pinned Tuist version, and Python 3.9 or later. Allow at least 35 GB of free space. Install the Developer ID identity and create a `notarytool` Keychain profile before packaging.
+
 ```sh
 export OMABOX_VERSION=0.1.0
-export OMABOX_BUILD_NUMBER=1
+export OMABOX_BUILD_NUMBER=10
 export OMABOX_TEAM_ID=4538W4A79B
 export OMABOX_SIGNING_IDENTITY='Developer ID Application: Aayush Pokharel (4538W4A79B)'
 export OMABOX_NOTARY_PROFILE=omabox-notary
@@ -46,30 +57,16 @@ export OMABOX_NOTARY_PROFILE=omabox-notary
 ./Scripts/package-release.sh
 ```
 
-`archive.sh` runs `tuist install`, generates the workspace, and archives the Release scheme for `generic/platform=macOS`. Version, build, signing team, identity, timestamp, hardened runtime, and arm64 architecture are explicit. It verifies both the source guest and the archived copy. The Xcode scheme also uses Release for Product → Archive.
+For unchanged guest inputs, a clean checkout can run `python3 Scripts/fetch-release-guest.py` instead of preparing a new factory. `--image /path/to/release.dmg` uses a local DMG with the same pinned integrity checks.
 
-`export.sh` verifies the archive and exports it with Xcode’s `developer-id` method, manual signing, and local export destination. It then verifies the exported app and its guest. The workflow does not recursively re-sign an exported bundle.
+Output defaults to `build/Archives/Omabox-VERSION-BUILD.xcarchive`, `build/Export/Omabox-VERSION-BUILD`, and `build/Release/Omabox-VERSION-BUILD`. Override these with `OMABOX_ARCHIVE_PATH`, `OMABOX_EXPORT_PATH`, and `OMABOX_RELEASE_PATH`. Destinations must not already exist; each script reserves its output with a sibling lock directory. Failed partial outputs remain available for inspection.
 
-`package-release.sh` copies the exported app to temporary staging, creates a ZIP with `ditto`, submits it to Apple, checks for `Accepted`, and staples the app. It builds a compressed APFS/UDZO disk image with an Applications link and a Licenses directory, signs and notarizes that image, and staples it. The script validates both tickets, runs strict code-signature and Gatekeeper checks, mounts the image read-only, and verifies the app and installation link inside it. Staging and the app notarization ZIP are removed when the command exits.
+An explicit signing Keychain can be set with `OMABOX_KEYCHAIN_PATH`; use `OMABOX_NOTARY_KEYCHAIN_PATH` for the notarization profile's Keychain. `OMABOX_NOTARY_TIMEOUT` defaults to `30m` per submission. A timeout does not cancel Apple's processing: preserve the submission ID and inspect it with `xcrun notarytool info` or `log` before retrying. [Apple's notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)
 
-The final directory contains `Omabox-VERSION-arm64.dmg`, `SHA256SUMS`, `release-manifest.json`, and the two notarization result files. The manifest is written only after all checks pass. The DMG must remain below 2 GiB, including its final stapled ticket, to qualify as a GitHub release asset. [GitHub release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
+## Distribution checks
 
-Notarization uploads occur only in `package-release.sh`. A timeout does not cancel Apple’s processing. Preserve the submission ID from the JSON report and inspect it with `xcrun notarytool info` or `log` before submitting again. [Apple’s notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)
+The scripts reject synthetic CI guest fixtures, invalid guest hashes, incorrect provenance, unexpected architectures, missing sandbox entitlements, and signing exceptions such as debugger access or disabled library validation. They verify the selected Developer ID team, secure signing timestamp, bundle version, and minimum macOS version.
 
-## Checks that block distribution
+Packaging validates both stapled tickets and Gatekeeper acceptance, mounts the finished DMG read-only, and checks its app, Applications link, and bundled licenses. The release manifest is written only after these checks pass. The DMG must remain below 2 GiB for GitHub release hosting. [GitHub release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
 
-`Scripts/verify-guest.py` rejects the `CI_ONLY_NOT_A_GUEST.txt` marker, tiny fixture images, missing files, symbolic links, invalid ARM64/kernel/initramfs/ext4 headers, mismatched provenance, and incorrect manifest sizes or SHA-256 hashes. The synthetic guest used by hosted CI cannot pass release verification. A real prepared factory image is required.
-
-App verification requires the expected bundle identifier and version/build, a macOS 26 deployment target, only arm64 Mach-O binaries, the selected Developer ID team, a secure signing timestamp, hardened runtime, sandboxing, and the expected virtualization and device entitlements. Debugger access, JIT, unsigned executable memory, and disabled library validation are rejected.
-
-The disk image includes Omabox’s license, third-party notices, guest package inventory and provenance, the supplied Virtio sound source, and the resolved Swift dependency licenses. Package-specific source distribution obligations still apply to the Linux guest. See [third-party notices](../THIRD_PARTY_NOTICES.md) and [Apple API choices](AppleAPIs.md).
-
-## GitHub Actions
-
-[The release workflow](../.github/workflows/release.yml) runs on `v*` tag pushes or a manual dispatch naming an existing tag. Its hosted validation job requires `vMAJOR.MINOR.PATCH` and confirms that the tagged commit belongs to `main` before it can reach signing credentials.
-
-The archive job runs in the GitHub `release` environment on a trusted, physical runner with labels `self-hosted`, `macOS`, `ARM64`, and `omabox-release`. Configure environment variables matching the table above for the preinstalled signing identity and notarization profile. The workflow supplies version, build number, and unique output directories for each attempt. Pull requests use hosted CI and do not run on this signing machine.
-
-The release Mac prepares and tests the real guest, runs the three scripts, and uploads the compressed archive and release image as temporary Actions artifacts with seven-day retention. The hosted publish job checks `SHA256SUMS` and creates the tagged GitHub release. Existing releases are not overwritten by the scripts or workflow. Keep the signing runner dedicated to trusted release work and use the environment’s protection rules to control who can start it.
-
-Local scripts retain the archive, export, and final release output. The CI job should preserve bounded notarization reports before removing its unique temporary archive, export, ZIP, and release directories after artifact upload, including on failure; the archive cache may be retained for subsequent builds. Packaging staging lives inside the unique release directory and is removed on ordinary exit. If detaching a verification volume fails, `STAGING_MOUNTED.txt` records its path; detach that volume before removing its staging directory. No app launch or notarization submission is needed to test the scripts’ guest validation and shell preflight paths.
+The DMG includes Omabox's license, third-party notices, guest package inventory and provenance, supplied Virtio sound source, and resolved Swift dependency licenses. See [third-party notices](../THIRD_PARTY_NOTICES.md). Local scripts retain the archive, export, and final release output. If volume detachment fails, inspect `STAGING_MOUNTED.txt` and detach that volume before removing its staging directory.

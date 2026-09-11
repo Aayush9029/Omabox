@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "sourceHash": {
+    "algorithm": "sha256-tree-v1",
+    "sha256": "569b8410bfa14afeae42ebdf39d7468f482fe1e6efd18ed7cbd8b271a8c0e6f4"
+  },
+  "releaseImage": {
+    "url": "https://github.com/Aayush9029/Omabox/releases/download/v0.1.0/Omabox-0.1.0-arm64.dmg",
+    "byteCount": 1752762739,
+    "sha256": "52d89d426632c2f957631075734470f3ca1f44bd6d0b72a4114b778dd0d75d90"
+  },
+  "guest": {
+    "version": "0.4.0",
+    "integrationVersion": 4,
+    "metadataSHA256": "88acaf58127c3a9da2ddad5b4d1f58af2c015beea6aa2b4cf6b3a00c5c0c01c8",
+    "integrity": {
+      "kernel": {
+        "byteCount": 44444160,
+        "sha256": "7274b843e925e6e470b16ffffc6acf33b8a9d30b8117e7f9ef7dcd32f2924789"
+      },
+      "initramfs": {
+        "byteCount": 97669120,
+        "sha256": "854e041391091e04dacdc18d0f35ecd456ebec52cc5b96991eb0e3611df3a5f1"
+      },
+      "rootfs.raw": {
+        "byteCount": 6442450944,
+        "sha256": "8b2a11ab8efb6ab038e963b7f56244e59d2045b3eec6e8dfd802137416f0b30a"
+      }
+    }
+  }
+}
