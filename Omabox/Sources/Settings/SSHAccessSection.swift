@@ -5,7 +5,7 @@ struct SSHAccessSection: View {
 
     var body: some View {
         Section("SSH Access") {
-            Toggle("Enable SSH access", isOn: Binding(get: { model.isEnabled }, set: model.enabledChanged))
+            Toggle("Enable SSH access", isOn: Binding(get: { model.isEnabled }, set: { model.enabledChanged($0) }))
                 .disabled(!model.isEnabled && !model.canEnable)
                 .accessibilityIdentifier("settings.ssh.enabled")
 
@@ -19,7 +19,7 @@ struct SSHAccessSection: View {
             }
 
             if model.folderPath != nil {
-                Picker("Public Key", selection: Binding(get: { model.selectedKeyName }, set: model.publicKeySelected)) {
+                Picker("Public Key", selection: Binding(get: { model.selectedKeyName }, set: { model.publicKeySelected($0) })) {
                     Text("Choose a public key").tag(String?.none)
                     ForEach(model.publicKeys) { key in
                         Text(key.fileName).tag(Optional(key.fileName))
