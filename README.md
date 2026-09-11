@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Omabox/Resources/OmarchyMark.png" width="96" alt="Omarchy icon">
+  <img src="Docs/images/icon.png" width="96" alt="Omabox app icon">
 </p>
 
 <h1 align="center">Omabox</h1>

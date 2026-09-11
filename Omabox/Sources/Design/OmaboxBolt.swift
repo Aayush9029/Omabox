@@ -61,21 +61,21 @@ public struct OmaboxBolt: Shape {
         )
     }
 
-    /// The deep purple that reads on a light panel sinks into a dark one, so the
-    /// stops lift to lavender under the dark appearance.
+    /// Darker teal reads on light panels; brighter stops retain contrast in the
+    /// dark appearance.
     public static let gradient = LinearGradient(
         colors: [
             adaptive(
-                light: Color(red: 0.694, green: 0.549, blue: 1.0),
-                dark: Color(red: 0.86, green: 0.78, blue: 1.0)
+                light: Color(red: 0.38, green: 0.70, blue: 0.68),
+                dark: Color(red: 0.66, green: 0.86, blue: 0.83)
             ),
             adaptive(
-                light: Color(red: 0.482, green: 0.247, blue: 0.894),
-                dark: Color(red: 0.76, green: 0.64, blue: 1.0)
+                light: Color(red: 0.15, green: 0.56, blue: 0.53),
+                dark: Color(red: 0.48, green: 0.76, blue: 0.72)
             ),
             adaptive(
-                light: Color(red: 0.290, green: 0.114, blue: 0.651),
-                dark: Color(red: 0.66, green: 0.50, blue: 1.0)
+                light: Color(red: 0.07, green: 0.39, blue: 0.37),
+                dark: Color(red: 0.33, green: 0.66, blue: 0.62)
             ),
         ],
         startPoint: .topLeading,
@@ -92,8 +92,8 @@ public struct OmaboxBolt: Shape {
     /// Mirrors the `fill` in `AppIcon.icon`, so the About pane matches the Dock.
     public static let iconBackground = LinearGradient(
         colors: [
-            Color(red: 0.18, green: 0.13, blue: 0.30),
-            Color(red: 0.05, green: 0.03, blue: 0.09),
+            Color(.displayP3, red: 0.08, green: 0.28, blue: 0.27),
+            Color(.displayP3, red: 0.02, green: 0.09, blue: 0.085),
         ],
         startPoint: .top,
         endPoint: .bottom
