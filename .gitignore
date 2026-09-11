@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+Tuist/.build/
+Tuist/Dependencies/
+Omabox/Resources/Guest/
+Artifacts/
+*.xcresult/
+*.profraw
+Derived/

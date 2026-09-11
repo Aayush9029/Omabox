@@ -1,0 +1,13 @@
+[Unit]
+Description=Omabox shared folder
+ConditionVirtualization=vm
+
+[Mount]
+What=omabox
+Where=/mnt/omabox
+Type=virtiofs
+Options=nosuid,nodev
+TimeoutSec=10
+
+[Install]
+WantedBy=multi-user.target

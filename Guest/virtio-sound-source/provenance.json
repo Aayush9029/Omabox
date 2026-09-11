@@ -1,0 +1,100 @@
+{
+  "repository": "https://github.com/gregkh/linux",
+  "tag": "v7.2.2",
+  "tag_object": "b6f54d701a4feab97077600d2d489754a8cc0f43",
+  "commit": "52c36105f76e96b638152a42e735f2e7767ed946",
+  "upstream_files_unmodified": true,
+  "files": [
+    {
+      "path": "Kconfig",
+      "upstream_path": "sound/virtio/Kconfig",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/Kconfig",
+      "git_blob_sha1": "094cba24ee5be2e23231c4eba6f13f0f7b3ffdbb",
+      "sha256": "60c804a5f24ad282bda45684b3c3d246eeb0d57829f7e35730b12b4a2b6fd827"
+    },
+    {
+      "path": "Makefile",
+      "upstream_path": "sound/virtio/Makefile",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/Makefile",
+      "git_blob_sha1": "3ca41b3c8b95bffc615d4cfa75a601b6a3183401",
+      "sha256": "9379a64396372c4e523a71613faeabf211e7ad8a9087101819daeed8d659180a"
+    },
+    {
+      "path": "virtio_card.c",
+      "upstream_path": "sound/virtio/virtio_card.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_card.c",
+      "git_blob_sha1": "647190f4d5afc36ffef7159b78ee59a6d22db2b4",
+      "sha256": "c131ced36b07c087383a9f0526f7dad4833f233b0546595751d4e12927aaca26"
+    },
+    {
+      "path": "virtio_card.h",
+      "upstream_path": "sound/virtio/virtio_card.h",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_card.h",
+      "git_blob_sha1": "3ceee4e416fc7be8c016064bfe08f26f8fe86fb8",
+      "sha256": "79eb9974ae93ced665d6bffa8d766ff0cb9a779618112e7c21e37191955274cc"
+    },
+    {
+      "path": "virtio_chmap.c",
+      "upstream_path": "sound/virtio/virtio_chmap.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_chmap.c",
+      "git_blob_sha1": "5bc924933a59fb2cea6985b334fa177a583601a3",
+      "sha256": "2c6ae3de0f67ee85842296a5205c276421678dcde0d7189e232dbaf0e53ee128"
+    },
+    {
+      "path": "virtio_ctl_msg.c",
+      "upstream_path": "sound/virtio/virtio_ctl_msg.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_ctl_msg.c",
+      "git_blob_sha1": "6433c870f271a7a222dd08dc184dab6e8795d754",
+      "sha256": "74c21a7a505f37c36ec970fa75447c0ab32671a24bd94873517234f477ab3222"
+    },
+    {
+      "path": "virtio_ctl_msg.h",
+      "upstream_path": "sound/virtio/virtio_ctl_msg.h",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_ctl_msg.h",
+      "git_blob_sha1": "7f4db044f28e73de07721895ddf821ea7fa2db58",
+      "sha256": "a2e195d6a483df6ceea164e43f4f274a2eab4779c16408fee7f4d8475c885e9f"
+    },
+    {
+      "path": "virtio_jack.c",
+      "upstream_path": "sound/virtio/virtio_jack.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_jack.c",
+      "git_blob_sha1": "68e40c7f5039e58cb3b40385eb879b29d2278b23",
+      "sha256": "58776791a4fdf2b216346d93b12be6833be7a159fa4acae3448e357b44612a8a"
+    },
+    {
+      "path": "virtio_kctl.c",
+      "upstream_path": "sound/virtio/virtio_kctl.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_kctl.c",
+      "git_blob_sha1": "45f7b6a5b3080ae03fe4f47bf5527418beef30f5",
+      "sha256": "dc50cff4758fd5111b2616dcc7df85a70e37a739a944472ae8218f68c2ec67e0"
+    },
+    {
+      "path": "virtio_pcm.c",
+      "upstream_path": "sound/virtio/virtio_pcm.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_pcm.c",
+      "git_blob_sha1": "be3893de40a5594bdf7bb40b3ff63771719404e1",
+      "sha256": "6da0817073a496345d00538b4d1e291cd4996249678881b72c3838dba61e9a1a"
+    },
+    {
+      "path": "virtio_pcm.h",
+      "upstream_path": "sound/virtio/virtio_pcm.h",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_pcm.h",
+      "git_blob_sha1": "368dafa5df3f320ea69f68695c452c24025ca351",
+      "sha256": "24de4b5cdbc1f225befebbc2a43fb46f6d966171e8789ec5ca27a3083620ed02"
+    },
+    {
+      "path": "virtio_pcm_msg.c",
+      "upstream_path": "sound/virtio/virtio_pcm_msg.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_pcm_msg.c",
+      "git_blob_sha1": "a5c4e70277173a8f46ba3208afe25d9b9c4495a5",
+      "sha256": "b8f7ecb55c00ba1ab0cf41c656644729f4b73f337932b26fc38e6cab9d5174b5"
+    },
+    {
+      "path": "virtio_pcm_ops.c",
+      "upstream_path": "sound/virtio/virtio_pcm_ops.c",
+      "url": "https://raw.githubusercontent.com/gregkh/linux/52c36105f76e96b638152a42e735f2e7767ed946/sound/virtio/virtio_pcm_ops.c",
+      "git_blob_sha1": "1105e7ff3523a085c845109755cbc62f12fb8a31",
+      "sha256": "ad567fefbfa0f51b30f7951aa61f24169a3025256e888268c218da7f0c2117b8"
+    }
+  ]
+}

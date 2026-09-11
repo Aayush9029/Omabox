@@ -1,0 +1,28 @@
+{
+  "color-space-for-untagged-svg-colors" : "display-p3",
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.18000,0.13000,0.30000,1.00000",
+      "display-p3:0.05000,0.03000,0.09000,1.00000"
+    ],
+    "orientation" : { "start" : { "x" : 0, "y" : 0 }, "stop" : { "x" : 0, "y" : 1 } }
+  },
+  "groups" : [
+    {
+      "name" : "Bolt",
+      "layers" : [
+        {
+          "image-name" : "Bolt.svg",
+          "name" : "Bolt",
+          "glass" : true,
+          "position" : { "scale" : 1.05, "translation-in-points" : [0, 0] }
+        }
+      ],
+      "lighting" : "combined",
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "translucency" : { "enabled" : true, "value" : 0.5 },
+      "specular" : true
+    }
+  ],
+  "supported-platforms" : { "squares" : "shared" }
+}

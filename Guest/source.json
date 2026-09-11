@@ -1,0 +1,10 @@
+{
+  "release": "Try Omarchy v0.3.0",
+  "url": "https://github.com/omacom/try-omarchy/releases/download/v0.3.0/TryOmarchy.dmg",
+  "sha256": "e89d71e8c409bdb28f7f60299eb18854ea4e6f2b01d5c1bb03f5d7d49ac9ba77",
+  "sourceRepository": "https://github.com/omacom/try-omarchy",
+  "sourceCommit": "6aced581ad991b0a1495b74907f8a41c8a58d0b6",
+  "omarchyRelease": "4.0.2",
+  "omarchyCommit": "346e69e1cec6c4e8924531874af6ba010a1bc99e",
+  "kernelVersion": "7.2.2-2-aarch64-ARCH"
+}

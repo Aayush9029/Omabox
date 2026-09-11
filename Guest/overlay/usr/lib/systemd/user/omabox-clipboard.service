@@ -1,0 +1,25 @@
+[Unit]
+Description=Omabox clipboard sharing
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/libexec/omabox-clipboard-agent.py
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5
+RuntimeDirectory=omabox-clipboard
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_VSOCK
+
+[Install]
+WantedBy=graphical-session.target
