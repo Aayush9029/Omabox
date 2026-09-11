@@ -21,7 +21,8 @@ for option in $(cat /proc/cmdline); do
   esac
 done
 
-preferences="$HOME/.config/omabox"
+readonly preferences="$HOME/.config/omabox"
+readonly config="$HOME/.config/hypr/hyprland.lua"
 mkdir -p "$preferences"
 if [[ ! -e $preferences/desktop.env ]]; then
   install -m 0600 /usr/local/share/omabox/desktop.env "$preferences/desktop.env"
@@ -29,17 +30,10 @@ fi
 if [[ ! -e $preferences/hyprland.lua ]]; then
   install -m 0644 /usr/local/share/omabox/hyprland.lua "$preferences/hyprland.lua"
 fi
-while IFS= read -r entry || [[ -n $entry ]]; do
-  [[ -z $entry || $entry == \#* ]] && continue
-  [[ $entry == *=* ]] || continue
-  key=${entry%%=*}
-  value=${entry#*=}
-  [[ $key =~ ^[A-Za-z_][A-Za-z_0-9]*$ ]] || continue
-  export "$key=$value"
-  if [[ $key == GDK_SCALE ]]; then export OMABOX_GDK_SCALE=$value; fi
-done < "$preferences/desktop.env"
+source /usr/local/libexec/omabox-desktop-environment.sh
+omabox_load_desktop_environment "$preferences/desktop.env" /mnt/omabox-config/desktop.env
+export OMABOX_GUEST_PREFERENCES="$preferences"
 
-config="$HOME/.config/hypr/hyprland.lua"
 integration='dofile("/usr/local/share/omabox/runtime.lua")'
 if [[ -f $config ]] && grep -Fxq 'dofile("/usr/local/share/omabox/hyprland.lua")' "$config"; then
   sed -i 's|^dofile("/usr/local/share/omabox/hyprland.lua")$|dofile("/usr/local/share/omabox/runtime.lua")|' "$config"

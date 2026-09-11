@@ -1,0 +1,20 @@
+[Unit]
+Description=Omabox SSH setup
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/libexec/omabox-ssh-agent.py
+Restart=on-failure
+RestartSec=2
+StateDirectory=omabox/ssh
+StateDirectoryMode=0755
+UMask=0077
+ProtectHome=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/omabox/ssh
+RestrictAddressFamilies=AF_VSOCK AF_UNIX AF_NETLINK AF_INET
+
+[Install]
+WantedBy=multi-user.target

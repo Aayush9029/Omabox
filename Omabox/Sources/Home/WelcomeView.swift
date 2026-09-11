@@ -11,7 +11,7 @@ struct WelcomeView: View {
             HStack(spacing: 0) {
                 welcomeColumn
                     .padding(.horizontal, 30)
-                    .padding(.top, 38)
+                    .padding(.top, 20)
                     .padding(.bottom, 20)
                     .frame(width: geometry.size.width * 0.39)
                 Divider()
@@ -20,14 +20,13 @@ struct WelcomeView: View {
                     .background(.primary.opacity(0.025))
             }
         }
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     private var welcomeColumn: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 18)
             identity
-            desktopPreview
-                .padding(.top, 28)
             Spacer(minLength: 28)
             if let message = model.errorMessage {
                 Label(message, systemImage: "exclamationmark.triangle")
@@ -39,8 +38,8 @@ struct WelcomeView: View {
                     .padding(.bottom, 16)
             }
             primaryAction
-            footer
-                .padding(.top, 22)
+            settingsButton
+                .padding(.top, 12)
         }
     }
 
@@ -61,31 +60,16 @@ struct WelcomeView: View {
                 .accessibilityLabel("Omabox")
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("welcome.title")
-            Text("Omarchy for Mac")
+            Text("Run Omarchy in a virtual machine.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Omarchy for Mac")
+                .accessibilityLabel("Run Omarchy in a virtual machine.")
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
-    }
-
-    @ViewBuilder
-    private var desktopPreview: some View {
-        if let preview = HomeAssets.preview {
-            Image(nsImage: preview)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: 260)
-                .clipShape(.rect(cornerRadius: 8))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
-                }
-                .accessibilityLabel("Omarchy desktop preview")
-                .accessibilityIdentifier("home.preview")
-        }
     }
 
     private var primaryAction: some View {
@@ -125,23 +109,25 @@ struct WelcomeView: View {
                 .tint(.primary)
                 .controlSize(.large)
                 .accessibilityIdentifier("welcome.setup")
-                Text(model.installationURL == nil ? "Creates a Linux disk on your Mac." : "Ready to start.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if model.installationURL == nil {
+                    Text("Creates a Linux disk on your Mac.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
 
-    private var footer: some View {
-        HStack {
-            Button("Settings", systemImage: "gearshape", action: onSettings)
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("desktop.settings")
-            Spacer()
-            Text(HomeAssets.version)
-                .foregroundStyle(.tertiary)
+    private var settingsButton: some View {
+        Button(action: onSettings) {
+            Text("Settings")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .contentShape(.rect)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("desktop.settings")
     }
 }

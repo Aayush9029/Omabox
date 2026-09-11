@@ -6,9 +6,9 @@ import Testing
 @MainActor
 struct CoreInputTests {
     @Test func reservesCommandKeysWithCapsLockAndUnrelatedDeviceFlags() throws {
-        let palette = try keyEvent(characters: "K", modifiers: [.command, .capsLock, .numericPad], keyCode: 40)
+        let palette = try keyEvent(characters: "K", modifiers: [.command, .control, .option, .capsLock, .numericPad], keyCode: 40)
         let settings = try keyEvent(characters: ",", modifiers: [.command, .function], keyCode: 43)
-        let shifted = try keyEvent(characters: "K", modifiers: [.command, .shift], keyCode: 40)
+        let shifted = try keyEvent(characters: "K", modifiers: [.command, .control, .option, .shift], keyCode: 40)
         expectNoDifference(ReservedHostKeyboardCommand(event: palette), .palette)
         expectNoDifference(ReservedHostKeyboardCommand(event: settings), .settings)
         #expect(ReservedHostKeyboardCommand(event: shifted) == nil)
@@ -22,7 +22,7 @@ struct CoreInputTests {
             handledCommands.append(command)
             return true
         }
-        let palette = try keyEvent(characters: "K", modifiers: [.command, .capsLock], keyCode: 40)
+        let palette = try keyEvent(characters: "K", modifiers: [.command, .control, .option, .capsLock], keyCode: 40)
         let settings = try keyEvent(characters: ",", modifiers: .command, keyCode: 43)
         let release = try keyEvent(characters: "\u{1b}", modifiers: [.control, .option], keyCode: 53)
         #expect(display.performKeyEquivalent(with: palette))
@@ -37,10 +37,30 @@ struct CoreInputTests {
     @Test func ordinaryGuestKeysAreNotReservedByTheHost() throws {
         let plainK = try keyEvent(characters: "k", modifiers: [], keyCode: 40)
         let controlK = try keyEvent(characters: "k", modifiers: .control, keyCode: 40)
+        let commandK = try keyEvent(characters: "k", modifiers: .command, keyCode: 40)
         let escape = try keyEvent(characters: "\u{1b}", modifiers: [], keyCode: 53)
         #expect(ReservedHostKeyboardCommand(event: plainK) == nil)
         #expect(ReservedHostKeyboardCommand(event: controlK) == nil)
+        #expect(ReservedHostKeyboardCommand(event: commandK) == nil)
         #expect(ReservedHostKeyboardCommand(event: escape) == nil)
+    }
+
+    @Test func commandKPassesBothGuestResponderPathsWithoutOpeningHostPalette() throws {
+        let display = GuestDisplayView()
+        var handledCommands: [ReservedHostKeyboardCommand] = []
+        display.reservedShortcutHandler = { event in
+            guard let command = ReservedHostKeyboardCommand(event: event) else { return false }
+            handledCommands.append(command)
+            return true
+        }
+        let guestShortcut = try keyEvent(characters: "K", modifiers: [.command, .capsLock], keyCode: 40)
+        _ = display.performKeyEquivalent(with: guestShortcut)
+        display.keyDown(with: guestShortcut)
+        #expect(handledCommands.isEmpty)
+
+        let hostShortcut = try keyEvent(characters: "k", modifiers: [.control, .option, .command], keyCode: 40)
+        #expect(display.performKeyEquivalent(with: hostShortcut))
+        expectNoDifference(handledCommands, [.palette])
     }
 
     @Test func releasingInputDoesNotChangeTheChosenCapturePreference() {

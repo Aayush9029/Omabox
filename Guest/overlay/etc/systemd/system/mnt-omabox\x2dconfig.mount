@@ -1,0 +1,14 @@
+[Unit]
+Description=Omabox Mac configuration files
+ConditionVirtualization=vm
+Before=display-manager.service
+
+[Mount]
+What=omabox-config
+Where=/mnt/omabox-config
+Type=virtiofs
+Options=ro,nosuid,nodev,noexec
+TimeoutSec=3
+
+[Install]
+WantedBy=multi-user.target

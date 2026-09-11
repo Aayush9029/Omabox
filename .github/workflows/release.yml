@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, such as v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: omabox-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate a release tag on main
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Expected a vMAJOR.MINOR.PATCH tag.' >&2; exit 1; }
+          release_commit=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$release_commit" origin/main
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "commit=$release_commit" >> "$GITHUB_OUTPUT"
+
+  archive:
+    needs: validate
+    runs-on: [self-hosted, macOS, ARM64, omabox-release]
+    environment: release
+    timeout-minutes: 180
+    env:
+      OMABOX_VERSION: ${{ needs.validate.outputs.version }}
+      OMABOX_BUILD_NUMBER: ${{ github.run_number }}
+      OMABOX_TEAM_ID: ${{ vars.OMABOX_TEAM_ID || '4538W4A79B' }}
+      OMABOX_SIGNING_IDENTITY: ${{ vars.OMABOX_SIGNING_IDENTITY }}
+      OMABOX_NOTARY_PROFILE: ${{ vars.OMABOX_NOTARY_PROFILE }}
+      OMABOX_KEYCHAIN_PATH: ${{ vars.OMABOX_KEYCHAIN_PATH }}
+      OMABOX_NOTARY_KEYCHAIN_PATH: ${{ vars.OMABOX_NOTARY_KEYCHAIN_PATH }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c
+        with:
+          version: '2026.9.5'
+          sha256: 6274b68122a837c514374e96dabb18a9e3562bdd28528b4b3feea9d8eb615d98
+          tool_versions: |
+            tuist 4.207.0
+          cache: false
+      - name: Check the release Mac
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == arm64 ]]
+          [[ "$(sysctl -n kern.hv_support)" == 1 ]]
+          : "${OMABOX_SIGNING_IDENTITY:?Set the release environment signing identity variable.}"
+          : "${OMABOX_NOTARY_PROFILE:?Set the release environment notary profile variable.}"
+          echo "OMABOX_ARCHIVE_PATH=$RUNNER_TEMP/Omabox-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.xcarchive" >> "$GITHUB_ENV"
+          echo "OMABOX_EXPORT_PATH=$RUNNER_TEMP/Omabox-export-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+          echo "OMABOX_RELEASE_PATH=$RUNNER_TEMP/Omabox-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+          xcodebuild -version
+          notary_args=(--keychain-profile "$OMABOX_NOTARY_PROFILE")
+          if [[ -n "$OMABOX_NOTARY_KEYCHAIN_PATH" ]]; then
+            notary_args+=(--keychain "$OMABOX_NOTARY_KEYCHAIN_PATH")
+          fi
+          xcrun notarytool history "${notary_args[@]}" --output-format json > "$RUNNER_TEMP/omabox-notary-preflight.json"
+      - name: Prepare the factory guest
+        run: ./Scripts/prepare-guest.sh
+      - name: Run native and guest unit tests
+        run: ./Scripts/ci.sh
+      - name: Test the guest in Apple Virtualization
+        run: ./Scripts/check-guest.sh
+      - name: Archive
+        run: ./Scripts/archive.sh
+      - name: Preserve the Xcode archive
+        run: /usr/bin/ditto -c -k --keepParent "$OMABOX_ARCHIVE_PATH" "$RUNNER_TEMP/Omabox.xcarchive.zip"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Omabox-Xcode-archive
+          path: ${{ runner.temp }}/Omabox.xcarchive.zip
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+      - name: Export Developer ID app
+        run: ./Scripts/export.sh
+      - name: Notarize and package
+        run: ./Scripts/package-release.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Omabox-release
+          path: |
+            ${{ env.OMABOX_RELEASE_PATH }}/*.dmg
+            ${{ env.OMABOX_RELEASE_PATH }}/SHA256SUMS
+            ${{ env.OMABOX_RELEASE_PATH }}/release-manifest.json
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+      - name: Preserve release diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Omabox-release-diagnostics
+          path: |
+            ${{ env.OMABOX_RELEASE_PATH }}/*-notarization.json
+            ${{ env.OMABOX_RELEASE_PATH }}/release-manifest.json
+            ${{ env.OMABOX_RELEASE_PATH }}/STAGING_MOUNTED.txt
+            build/ci/run.*/*.log
+            build/ci/run.*/UnitTests.xcresult
+            Artifacts/guest-build-*/*.log
+            Artifacts/guest-qa-*/*.log
+            Artifacts/guest-qa-*/exports/*.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Remove this attempt’s temporary products
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for output in "${OMABOX_ARCHIVE_PATH:-}" "${OMABOX_EXPORT_PATH:-}" "${OMABOX_RELEASE_PATH:-}"; do
+            [[ -n "$output" ]] || continue
+            [[ "$output" == "$RUNNER_TEMP"/Omabox-* ]] || exit 1
+            if [[ -f "$output/STAGING_MOUNTED.txt" ]]; then
+              echo "Retaining mounted verification image: $output"
+              cat "$output/STAGING_MOUNTED.txt"
+              continue
+            fi
+            rm -rf -- "$output" "$output.lock"
+          done
+          rm -f -- "$RUNNER_TEMP/Omabox.xcarchive.zip" "$RUNNER_TEMP/omabox-notary-preflight.json"
+
+  publish:
+    needs: [validate, archive]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: Omabox-release
+          path: release
+      - name: Verify and publish the release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum --check SHA256SUMS
+          gh release create "$RELEASE_TAG" ./*.dmg SHA256SUMS release-manifest.json --verify-tag --target "$RELEASE_COMMIT" --title "Omabox $RELEASE_TAG" --generate-notes

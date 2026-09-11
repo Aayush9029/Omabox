@@ -157,7 +157,11 @@ final class AppleVirtualMachineRuntime: NSObject, VirtualMachineRuntime, @precon
         } else {
             fileSystem.share = VZMultipleDirectoryShare()
         }
-        configuration.directorySharingDevices = [fileSystem]
+        let configurationFileSystem = VZVirtioFileSystemDeviceConfiguration(tag: "omabox-config")
+        configurationFileSystem.share = VZSingleDirectoryShare(
+            directory: VZSharedDirectory(url: try LinuxConfigurationFiles.prepareDirectory(), readOnly: true)
+        )
+        configuration.directorySharingDevices = [fileSystem, configurationFileSystem]
 
         let console = VZVirtioConsoleDeviceSerialPortConfiguration()
         let logURL = installation.directory.appending(path: "console.log")

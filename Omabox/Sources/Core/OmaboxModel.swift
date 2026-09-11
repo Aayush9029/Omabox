@@ -13,33 +13,51 @@ final class OmaboxModel {
     @ObservationIgnored @Dependency(\.virtualMachineClient) private var virtualMachineClient
     @ObservationIgnored @Dependency(\.microphoneClient) private var microphone
     @ObservationIgnored @Dependency(\.continuousClock) private var clock
+    @ObservationIgnored @Dependency(\.linuxConfigurationClient) private var linuxConfiguration
 
-    private(set) var state: VMState = .absent
+    private(set) var state: VMState = .absent {
+        didSet { updateSSHSession() }
+    }
     private(set) var progress: Double?
     var errorMessage: String?
-    private(set) var virtualMachine: VZVirtualMachine?
+    private(set) var virtualMachine: VZVirtualMachine? {
+        didSet { updateSSHSession() }
+    }
     private(set) var installationURL: URL?
     private(set) var supportsSaveRestore = false
+    let ssh: SSHAccessModel
 
     @ObservationIgnored private var installation: GuestInstallation?
     @ObservationIgnored private var runtime: (any VirtualMachineRuntime)?
     @ObservationIgnored private var didLoad = false
     @ObservationIgnored private var installGeneration = 0
     @ObservationIgnored private var runtimeGeneration = 0
-    private(set) var isChangingRunState = false
+    private(set) var isChangingRunState = false {
+        didSet { updateSSHSession() }
+    }
 
     var sharedFolderName: String? { preferences.sharedFolderName }
     var isRunning: Bool { state.isRunning }
     var isBusy: Bool { state.isBusy || isChangingRunState }
     var resourcePolicy: VMResourcePolicy { virtualMachineClient.resourcePolicy() }
 
+    func openLinuxConfigurationFile(_ file: LinuxConfigurationFile) async {
+        do {
+            try await linuxConfiguration.open(file)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     init(preferences: Shared<VMPreferences>? = nil) {
+        ssh = SSHAccessModel(preferences: preferences)
         if let preferences { _preferences = preferences }
     }
 
     func task() async {
         guard !didLoad else { return }
         didLoad = true
+        await ssh.task()
         do {
             if let existing = try await installer.existing() {
                 installation = existing
@@ -299,5 +317,9 @@ final class OmaboxModel {
     private func fail(_ error: any Error) {
         errorMessage = error.localizedDescription
         state = .failed(error.localizedDescription)
+    }
+
+    private func updateSSHSession() {
+        ssh.sessionChanged(machine: virtualMachine, isRunning: state == .running && !isChangingRunState)
     }
 }

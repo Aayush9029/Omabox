@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The app icon's bolt, as a shape, so the icon, the About pane and the menu bar
 /// all draw the same artwork instead of three lookalike SF Symbols.
-public struct FlareBolt: Shape {
+public struct OmaboxBolt: Shape {
     private static let designSize = CGSize(width: 640, height: 604)
 
     public init() {}
@@ -107,7 +107,7 @@ public struct FlareBolt: Shape {
         let size = NSSize(width: width, height: height)
         let image = NSImage(size: size, flipped: true) { rect in
             NSColor.black.setFill()
-            NSBezierPath(cgPath: FlareBolt().path(in: rect).cgPath).fill()
+            NSBezierPath(cgPath: OmaboxBolt().path(in: rect).cgPath).fill()
             return true
         }
         image.isTemplate = true
@@ -116,7 +116,7 @@ public struct FlareBolt: Shape {
 }
 
 /// The app icon rendered in-app, for the About pane.
-public struct FlareAppIcon: View {
+public struct OmaboxAppIcon: View {
     var size: CGFloat = 52
 
     public init(size: CGFloat = 52) { self.size = size }
@@ -124,8 +124,8 @@ public struct FlareAppIcon: View {
     public var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
-                .fill(FlareBolt.iconBackground)
-            FlareBolt()
+                .fill(OmaboxBolt.iconBackground)
+            OmaboxBolt()
                 .fill(
                     LinearGradient(
                         colors: [.white, Color(white: 0.82)],

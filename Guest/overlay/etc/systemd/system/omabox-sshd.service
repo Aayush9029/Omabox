@@ -1,0 +1,14 @@
+[Unit]
+Description=Omabox SSH access
+After=network.target
+ConditionPathExists=/var/lib/omabox/ssh/sshd_config
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sshd -D -e -f /var/lib/omabox/ssh/sshd_config
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=omabox-sshd
+RuntimeDirectoryMode=0755
+KillMode=control-group
+TimeoutStopSec=5

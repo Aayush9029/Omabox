@@ -3,102 +3,55 @@ import SwiftUI
 
 struct HomeConfigurationView: View {
     let model: OmaboxModel
-    @State private var search = ""
 
     private var canChangeHardware: Bool {
         !model.isBusy && !model.state.hasActiveSession
     }
 
-    private var showsResources: Bool { matches("Resources CPU processors memory RAM disk storage capacity") }
-    private var showsSharing: Bool { matches("Sharing clipboard text microphone audio folder files read-only permissions") }
-    private var showsKeyboard: Bool { matches("Keyboard shortcuts system keys command option control") }
-    private var showsCustomization: Bool { matches("Customize Linux display scale retina renderer threads desktop configuration Hyprland") }
-
     var body: some View {
-        VStack(spacing: 0) {
-            searchField
-                .padding(.horizontal, 24)
-                .padding(.top, 38)
-                .padding(.bottom, 14)
-            Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    if showsResources { resources }
-                    if showsSharing { sharing }
-                    if showsKeyboard { keyboard }
-                    if showsCustomization { customization }
-                    if !showsResources && !showsSharing && !showsKeyboard && !showsCustomization {
-                        ContentUnavailableView.search(text: search)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                resources
+                sharing
+                keyboard
+                customization
+                configurationFiles
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+            .padding(.bottom, 24)
         }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.tertiary)
-            TextField("Search configuration", text: $search)
-                .textFieldStyle(.plain)
-                .accessibilityIdentifier("home.search")
-            if !search.isEmpty {
-                Button("Clear search", systemImage: "xmark.circle.fill") { search = "" }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .font(.callout)
     }
 
     private var resources: some View {
         HomeConfigurationSection(title: "Resources") {
-            HomeConfigurationRow(title: "Processors", symbol: "cpu") {
-                HStack(spacing: 10) {
-                    Text("\(model.preferences.cpuCount) cores")
-                        .monospacedDigit()
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(model.preferences.cpuCount) cores")
-                        .accessibilityIdentifier("home.cpu.value")
-                    Stepper("Processors", value: Binding(model.$preferences.cpuCount), in: model.resourcePolicy.cpuRange)
-                        .labelsHidden()
-                        .accessibilityIdentifier("home.cpu")
-                }
-                .accessibilityElement(children: .contain)
-                .disabled(!canChangeHardware)
-            }
+            HomeResourcePresetRow(
+                title: "Processors",
+                symbol: "cpu",
+                unit: "cores",
+                values: presetValues([2, 4, 8, 16, 32, 64, 128, model.resourcePolicy.cpuRange.upperBound], in: model.resourcePolicy.cpuRange, current: model.preferences.cpuCount),
+                identifier: "home.cpu",
+                selection: Binding(model.$preferences.cpuCount)
+            )
+            .disabled(!canChangeHardware)
             rowDivider
-            HomeConfigurationRow(title: "Memory", symbol: "memorychip") {
-                HStack(spacing: 10) {
-                    Text("\(model.preferences.memoryGiB) GB")
-                        .monospacedDigit()
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(model.preferences.memoryGiB) GB")
-                        .accessibilityIdentifier("home.memory.value")
-                    Stepper("Memory", value: Binding(model.$preferences.memoryGiB), in: model.resourcePolicy.memoryRangeGiB)
-                        .labelsHidden()
-                        .accessibilityIdentifier("home.memory")
-                }
-                .accessibilityElement(children: .contain)
-                .disabled(!canChangeHardware)
-            }
+            HomeResourcePresetRow(
+                title: "Memory",
+                symbol: "memorychip",
+                unit: "GB",
+                values: presetValues([4, 8, 12, 16, 32, 48], in: model.resourcePolicy.memoryRangeGiB, current: model.preferences.memoryGiB),
+                identifier: "home.memory",
+                selection: Binding(model.$preferences.memoryGiB)
+            )
+            .disabled(!canChangeHardware)
             rowDivider
-            HomeConfigurationRow(title: "Disk", symbol: "internaldrive", subtitle: model.installationURL == nil ? "Uses space as needed" : "Capacity set during installation") {
-                HStack(spacing: 10) {
-                    Text("\(model.preferences.diskSizeGiB) GB")
-                        .monospacedDigit()
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(model.preferences.diskSizeGiB) GB")
-                        .accessibilityIdentifier("home.disk.value")
-                    Stepper("Disk capacity", value: Binding(model.$preferences.diskSizeGiB), in: model.resourcePolicy.diskRangeGiB, step: 8)
-                        .labelsHidden()
-                        .accessibilityIdentifier("home.disk")
-                }
-                .accessibilityElement(children: .contain)
-                .disabled(!canChangeHardware || model.installationURL != nil)
+            HomeConfigurationRow(title: "Disk", symbol: "internaldrive", subtitle: "Not editable") {
+                Text("\(model.preferences.diskSizeGiB) GB")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(model.preferences.diskSizeGiB) GB")
+                    .accessibilityIdentifier("home.disk.value")
             }
         }
     }
@@ -200,31 +153,40 @@ struct HomeConfigurationView: View {
                 .disabled(!canChangeHardware)
                 .accessibilityIdentifier("home.renderThreads")
             }
-            DisclosureGroup("Linux Configuration Files") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Edit these files inside Linux:")
-                    Text("~/.config/omabox/desktop.env\n~/.config/omabox/hyprland.lua")
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                    Text("Your changes are preserved when Omabox starts.")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 6)
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.leading, 40)
-            .padding(.top, 10)
-            .accessibilityIdentifier("home.configFiles")
         }
+    }
+
+    private var configurationFiles: some View {
+        HomeConfigurationSection(title: "Linux Configuration Files") {
+            configurationFileRow(.environment)
+            rowDivider
+            configurationFileRow(.desktop)
+            Text("Saved changes apply when Linux starts.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 40)
+                .padding(.top, 6)
+        }
+    }
+
+    private func configurationFileRow(_ file: LinuxConfigurationFile) -> some View {
+        HomeConfigurationRow(title: file.title, symbol: "doc.text", subtitle: file.fileName) {
+            Button("Open in Editor") {
+                Task { await model.openLinuxConfigurationFile(file) }
+            }
+            .disabled(!canChangeHardware)
+            .accessibilityIdentifier("home.configFiles.\(file.rawValue)")
+        }
+    }
+
+    private func presetValues(_ candidates: [Int], in range: ClosedRange<Int>, current: Int) -> [Int] {
+        let values = Set((candidates + [current]).filter { range.contains($0) }).sorted()
+        return values.isEmpty ? [range.lowerBound] : values
     }
 
     private var rowDivider: some View {
         Divider().padding(.leading, 40)
     }
 
-    private func matches(_ keywords: String) -> Bool {
-        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return query.isEmpty || keywords.localizedStandardContains(query)
-    }
 }

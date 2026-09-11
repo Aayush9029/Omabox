@@ -5,8 +5,13 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation, GuestHostKeyboardCommandHandling {
     private var model: OmaboxModel?
-    private let palette = PaletteModel()
+    private lazy var palette = PaletteModel(
+        onPresentationChanged: { [weak self] in self?.layoutCommandMenu() },
+        onResolutionSelected: { [weak self] preset in self?.applyResolution(preset) }
+    )
     private var desktopWindow: NSWindow?
+    private var windowPresentation: DesktopWindowPresentation?
+    private var pendingResolution: DesktopResolutionPreset?
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
     private var eventMonitor: Any?
@@ -18,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         createDesktop(model: model)
         createMenu()
         observePreferences()
+        observeDesktopPresentation()
         installKeyboardCommands()
     }
 
@@ -25,13 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let content = NSHostingView(rootView: DesktopView(
             model: model,
             palette: palette,
-            onSettings: { [weak self] in self?.showSettings(tab: .machine) },
+            onSettings: { [weak self] in self?.showSettings(tab: .general) },
             onPalette: { [weak self] in self?.togglePalette() },
             onCommand: { [weak self] command in self?.execute(command) }
         ))
         content.sizingOptions = []
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 920, height: 700),
+            contentRect: NSRect(origin: .zero, size: DesktopWindowPresentation.homeSize),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -42,10 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         window.isOpaque = false
         window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 760, height: 610)
         window.contentView = content
         window.delegate = self
-        window.setFrameAutosaveName(AppEnvironment.isUITesting ? "OmaboxDesktopUITesting" : "OmaboxDesktop")
+        windowPresentation = DesktopWindowPresentation(window: window)
         window.center()
         desktopWindow = window
         showDesktop()
@@ -109,7 +114,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let windowMenu = NSMenu(title: "Window")
         windowItem.submenu = windowMenu
         windowMenu.addItem(withTitle: "Show Omabox", action: #selector(showDesktop), keyEquivalent: "0").target = self
-        windowMenu.addItem(withTitle: "Command Palette", action: #selector(togglePalette), keyEquivalent: "k").target = self
+        let paletteItem = windowMenu.addItem(withTitle: "Command Palette", action: #selector(togglePalette), keyEquivalent: ReservedHostKeyboardCommand.paletteKeyEquivalent)
+        paletteItem.target = self
+        paletteItem.keyEquivalentModifierMask = ReservedHostKeyboardCommand.paletteModifierFlags
+        let releaseItem = windowMenu.addItem(withTitle: "Release Keyboard", action: #selector(releaseKeyboard), keyEquivalent: "\u{1b}")
+        releaseItem.target = self
+        releaseItem.keyEquivalentModifierMask = [.control, .option]
+        windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: "Pause Desktop", action: #selector(togglePause), keyEquivalent: "").target = self
+        windowMenu.addItem(withTitle: "Shut Down Omarchy", action: #selector(shutDown), keyEquivalent: "").target = self
+        windowMenu.addItem(.separator())
         let fullScreenItem = windowMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         fullScreenItem.keyEquivalentModifierMask = [.control, .command]
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
@@ -121,6 +135,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let statusMenu = NSMenu()
         statusMenu.addItem(withTitle: "Show Omabox", action: #selector(showDesktop), keyEquivalent: "").target = self
         statusMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: "").target = self
+        statusMenu.addItem(withTitle: "Release Keyboard", action: #selector(releaseKeyboard), keyEquivalent: "").target = self
+        statusMenu.addItem(.separator())
+        statusMenu.addItem(withTitle: "Pause Desktop", action: #selector(togglePause), keyEquivalent: "").target = self
+        statusMenu.addItem(withTitle: "Shut Down Omarchy", action: #selector(shutDown), keyEquivalent: "").target = self
         statusMenu.addItem(.separator())
         statusMenu.addItem(withTitle: "Quit Omabox", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
         status.menu = statusMenu
@@ -144,11 +162,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
     }
 
+    private func observeDesktopPresentation() {
+        guard let model else { return }
+        withObservationTracking {
+            windowPresentation?.update(showsDesktop: model.virtualMachine != nil && model.state.hasActiveSession)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDesktopPresentation() }
+        }
+    }
+
     func handleHostKeyboardEvent(_ event: NSEvent) -> Bool {
         guard event.type == .keyDown, NSApp.modalWindow == nil,
               event.window?.sheetParent == nil, event.window?.attachedSheet == nil else { return false }
+        if event.window === desktopWindow, palette.isPresented {
+            let editor = desktopWindow?.firstResponder as? NSTextView
+            if palette.handleKeyboardEvent(
+                event,
+                isComposingText: editor?.hasMarkedText() == true,
+                currentSearchText: editor?.string,
+                onExecute: execute
+            ) { return true }
+        }
         switch ReservedHostKeyboardCommand(event: event) {
-        case .palette where model?.state == .running:
+        case .palette where model?.state == .running || model?.state == .paused:
             togglePalette()
             return true
         case .settings:
@@ -156,37 +192,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             showSettings()
             return true
         case .releaseInput:
-            desktopWindow?.makeFirstResponder(nil)
+            releaseKeyboard()
             return true
         default:
-            if event.keyCode == 53 && palette.isPresented {
-                palette.close()
-                return true
-            }
             return false
         }
     }
 
     @objc private func togglePalette() {
-        guard let model, model.state == .running else { return }
+        guard let model, model.state == .running || model.state == .paused else { return }
         if palette.isPresented { palette.close(); return }
         showDesktop()
         if desktopWindow?.firstResponder is GuestDisplayView {
             desktopWindow?.makeFirstResponder(nil)
         }
-        var commands: [DesktopCommand] = [.pause, .shutdown, .settings, .machine, .sharing, .shortcuts, .fullScreen]
-        if model.installationURL != nil { commands.append(.files) }
-        palette.open(commands: commands)
+        palette.open(
+            commands: DesktopCommand.available(in: model.state, hasInstallation: model.installationURL != nil),
+            currentResolution: model.virtualMachine?.graphicsDevices.first?.displays.first?.sizeInPixels
+        )
+    }
+
+    private func layoutCommandMenu() {
+        desktopWindow?.contentView?.needsLayout = true
+        desktopWindow?.contentView?.layoutSubtreeIfNeeded()
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(togglePalette) { return model?.state == .running }
+        if menuItem.action == #selector(togglePalette) || menuItem.action == #selector(releaseKeyboard) {
+            return model?.state == .running || model?.state == .paused
+        }
+        if menuItem.action == #selector(togglePause) {
+            menuItem.title = model?.state == .paused ? "Resume Desktop" : "Pause Desktop"
+            return (model?.state == .running || model?.state == .paused) && model?.isChangingRunState == false
+        }
+        if menuItem.action == #selector(shutDown) {
+            return (model?.state == .running || model?.state == .paused) && model?.isChangingRunState == false
+        }
         return true
     }
 
     private func execute(_ command: DesktopCommand) {
         guard let model else { return }
-        palette.close()
+        if command != .resolution { palette.close() }
         switch command {
         case .settings: showSettings()
         case .machine: showSettings(tab: .machine)
@@ -196,11 +243,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         case .files:
             if let url = model.installationURL { NSWorkspace.shared.open(url) }
         case .fullScreen: desktopWindow?.toggleFullScreen(nil)
+        case .resolution:
+            palette.showResolutions()
+        case .releaseKeyboard: releaseKeyboard()
         case .start: Task { await model.startButtonTapped() }
         case .pause: Task { await model.pauseButtonTapped() }
         case .resume: Task { await model.resumeButtonTapped() }
         case .shutdown: Task { await model.shutDownButtonTapped() }
         }
+    }
+
+    private func applyResolution(_ preset: DesktopResolutionPreset) {
+        guard let window = desktopWindow, let display = model?.virtualMachine?.graphicsDevices.first?.displays.first,
+              let guestView = guestDisplay(in: window.contentView) else { return }
+        pendingResolution = preset
+        if windowPresentation?.exitFullScreenIfNeeded() == true {
+            return
+        }
+        pendingResolution = nil
+        let wasAutomatic = guestView.automaticallyReconfiguresDisplay
+        do {
+            if let size = preset.sizeInPixels {
+                guestView.automaticallyReconfiguresDisplay = false
+                try display.reconfigure(sizeInPixels: size)
+                window.aspectRatio = size
+                windowPresentation?.resizeContent(to: size)
+            } else {
+                window.aspectRatio = .zero
+                guestView.automaticallyReconfiguresDisplay = true
+                windowPresentation?.fitToScreen()
+            }
+        } catch {
+            guestView.automaticallyReconfiguresDisplay = wasAutomatic
+            let alert = NSAlert(error: error)
+            alert.messageText = "Unable to change the display resolution"
+            alert.beginSheetModal(for: window)
+        }
+    }
+
+    private func guestDisplay(in view: NSView?) -> GuestDisplayView? {
+        if let display = view as? GuestDisplayView { return display }
+        for child in view?.subviews ?? [] {
+            if let display = guestDisplay(in: child) { return display }
+        }
+        return nil
     }
 
     @objc private func showDesktop() {
@@ -210,6 +296,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func openSettings() { showSettings() }
     @objc private func openAbout() { showSettings(tab: .about) }
+    @objc private func releaseKeyboard() { desktopWindow?.makeFirstResponder(nil) }
+    @objc private func togglePause() { execute(model?.state == .paused ? .resume : .pause) }
+    @objc private func shutDown() { execute(.shutdown) }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showDesktop()
@@ -253,9 +342,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func windowWillClose(_ notification: Notification) {
         if let window = notification.object as? NSWindow, window === desktopWindow {
+            windowPresentation?.recordDesktopFrame()
             palette.close()
             window.makeFirstResponder(nil)
         }
+    }
+
+    func windowDidExitFullScreen(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.didExitFullScreen()
+        if let preset = pendingResolution {
+            pendingResolution = nil
+            applyResolution(preset)
+        }
+    }
+
+    func windowDidEnterFullScreen(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.didEnterFullScreen()
+    }
+
+    func windowWillEnterFullScreen(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.willEnterFullScreen()
+    }
+
+    func windowWillExitFullScreen(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.willExitFullScreen()
+    }
+
+    func windowDidFailToEnterFullScreen(_ window: NSWindow) {
+        guard window === desktopWindow else { return }
+        windowPresentation?.didFailToEnterFullScreen()
+        if let preset = pendingResolution {
+            pendingResolution = nil
+            applyResolution(preset)
+        }
+    }
+
+    func windowDidFailToExitFullScreen(_ window: NSWindow) {
+        guard window === desktopWindow else { return }
+        let isWindowed = windowPresentation?.didFailToExitFullScreen() == true
+        if let preset = pendingResolution {
+            pendingResolution = nil
+            if isWindowed {
+                applyResolution(preset)
+                return
+            }
+            let alert = NSAlert()
+            alert.messageText = "Leave full screen to resize the desktop"
+            alert.informativeText = "macOS could not leave full screen. Try again from the command menu."
+            alert.beginSheetModal(for: window)
+        }
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.recordDesktopFrame()
+    }
+
+    func windowDidEndLiveResize(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        windowPresentation?.recordDesktopFrame()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

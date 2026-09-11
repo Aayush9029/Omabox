@@ -48,7 +48,7 @@ struct SelectableCard<Content: View>: View {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(.black.opacity(colorScheme == .dark ? 0.35 : 0.06))
         } else {
-            Color.clear.flareGlass(cornerRadius: radius)
+            Color.clear.omaboxGlass(cornerRadius: radius)
         }
     }
 }

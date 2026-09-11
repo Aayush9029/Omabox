@@ -3,7 +3,7 @@ import Foundation
 
 @CasePathable
 enum DesktopCommand: String, CaseIterable, Identifiable {
-    case start, pause, resume, shutdown, settings, machine, sharing, shortcuts, folder, files, fullScreen
+    case start, pause, resume, shutdown, settings, machine, sharing, shortcuts, folder, files, fullScreen, releaseKeyboard, resolution
 
     var id: Self { self }
 
@@ -20,6 +20,8 @@ enum DesktopCommand: String, CaseIterable, Identifiable {
         case .folder: "Choose a shared folder"
         case .files: "Show desktop files in Finder"
         case .fullScreen: "Toggle full screen"
+        case .releaseKeyboard: "Release keyboard"
+        case .resolution: "Change resolution"
         }
     }
 
@@ -36,6 +38,8 @@ enum DesktopCommand: String, CaseIterable, Identifiable {
         case .folder: "Share a folder you choose with Linux"
         case .files: "Open the location of your virtual machine"
         case .fullScreen: "Enter or leave full screen"
+        case .releaseKeyboard: "Return keyboard and shortcuts to your Mac"
+        case .resolution: "Choose a desktop size"
         }
     }
 
@@ -52,15 +56,31 @@ enum DesktopCommand: String, CaseIterable, Identifiable {
         case .folder: "folder.badge.plus"
         case .files: "folder"
         case .fullScreen: "arrow.up.left.and.arrow.down.right"
+        case .releaseKeyboard: "keyboard.chevron.compact.down"
+        case .resolution: "display"
         }
     }
 
     var keywords: String {
         switch self {
+        case .shutdown: "shutdown power off stop turn off"
+        case .resume: "unpause continue"
+        case .pause: "suspend"
+        case .settings: "preferences options configuration"
+        case .folder: "directory folder share mount"
         case .machine: "cpu ram cores memory disk storage hardware resources"
         case .sharing: "clipboard copy paste permissions microphone audio sound privacy"
         case .shortcuts: "command control option super keyboard keys hotkey escape release"
+        case .releaseKeyboard: "capture input escape control option host mac shortcuts"
+        case .resolution: "resolution display size pixels screen monitor 320p"
         default: ""
         }
+    }
+
+    static func available(in state: VMState, hasInstallation: Bool) -> [Self] {
+        guard state == .running || state == .paused else { return [] }
+        var commands: [Self] = [state == .paused ? .resume : .pause, .shutdown, .settings, .releaseKeyboard, .resolution, .machine, .sharing, .shortcuts, .folder, .fullScreen]
+        if hasInstallation { commands.append(.files) }
+        return commands
     }
 }

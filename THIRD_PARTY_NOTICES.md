@@ -2,11 +2,11 @@
 
 The root [LICENSE](LICENSE) applies to Omabox’s original source code. Separately credited code and artwork retain their own terms. The Linux guest contains additional packages with their own licenses; Omabox does not relicense them.
 
-## Flare design and artwork
+## Original design resources and artwork
 
-Omabox’s settings components and original Flare resources were copied from [Flare](https://github.com/Aayush9029/Flare) at the request of its owner, Aayush Pokharel. Flare identifies its copyright as © 2026 Aayush Pokharel, all rights reserved, and has no standalone license file. Permission to reuse those components and assets in Omabox does not grant a blanket license to the artwork under this repository’s MIT license.
+Omabox’s settings components and original design resources are reused at the request of their owner, Aayush Pokharel. The original source identifies its copyright as © 2026 Aayush Pokharel, all rights reserved, and has no standalone license file. Permission to reuse those components and assets in Omabox does not grant a blanket license to the artwork under this repository’s MIT license.
 
-The copied resources include the Icon Composer artwork, Bolt SVG, settings illustrations, GIFs, desktop thumbnail, and provider icon collection. The desktop thumbnail is identified in Flare’s source as an Unsplash photograph. That photograph and the provider marks retain their original terms. See [asset provenance](Omabox/Resources/AssetProvenance.md).
+The copied resources include the Icon Composer artwork, Bolt SVG, settings illustrations, GIFs, desktop thumbnail, and provider icon collection. The desktop thumbnail is identified in the original source as an Unsplash photograph. That photograph and the provider marks retain their original terms. See [asset provenance](Omabox/Resources/AssetProvenance.md).
 
 ## Omarchy
 
@@ -69,7 +69,7 @@ SOFTWARE.
 
 ## LobeHub icons
 
-The provider marks in `Omabox/Resources/ProviderIcons.xcassets` were copied with Flare’s resources. Their original source is LobeHub’s static SVG collection. The provider names and marks belong to their respective owners and do not imply affiliation or integration.
+The provider marks in `Omabox/Resources/ProviderIcons.xcassets` were copied with the original design resources. Their original source is LobeHub’s static SVG collection. The provider names and marks belong to their respective owners and do not imply affiliation or integration.
 
 [Upstream repository](https://github.com/lobehub/lobe-icons) · [License source](https://raw.githubusercontent.com/lobehub/lobe-icons/master/LICENSE)
 

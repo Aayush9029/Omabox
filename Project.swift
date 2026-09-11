@@ -76,7 +76,8 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: ["Omabox"]),
             testAction: .targets(["OmaboxTests", "OmaboxUITests"], options: .options(coverage: true)),
-            runAction: .runAction(configuration: "Debug")
+            runAction: .runAction(configuration: "Debug"),
+            archiveAction: .archiveAction(configuration: "Release")
         )
     ]
 )

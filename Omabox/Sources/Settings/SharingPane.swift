@@ -58,6 +58,8 @@ struct SharingPane: View {
                     .settingFootnote()
             }
 
+            SSHAccessSection(model: model.ssh)
+
             Section("Screen Sharing") {
                 Label("Share the Linux desktop from inside Linux", systemImage: "rectangle.on.rectangle")
                 Text("Apps in Linux use its PipeWire screen sharing portal. Displaying the virtual desktop does not need your Mac’s Screen Recording permission.")

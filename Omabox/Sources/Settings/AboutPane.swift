@@ -11,7 +11,7 @@ struct AboutPane: View {
         SettingsForm {
             Section {
                 HStack(spacing: 14) {
-                    FlareAppIcon(size: 52)
+                    OmaboxAppIcon(size: 52)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Omabox")
@@ -32,8 +32,7 @@ struct AboutPane: View {
                 LabeledContent("Desktop", value: "Stored on this Mac")
             }
 
-            Section("Credits") {
-                LabeledContent("Design and artwork", value: "Flare · Aayush Pokharel")
+            Section("Omarchy") {
                 Text("Omabox is an independent project and is not an official Omarchy release.")
                     .settingFootnote()
             }

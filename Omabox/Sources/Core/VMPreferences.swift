@@ -25,6 +25,13 @@ nonisolated struct VMPreferences: Codable, Equatable, Sendable {
     var sharedFolderReadOnly = true
     var machineIdentifier: Data?
     var macAddress: String?
+    var sshEnabled = false
+    var sshNeedsDisable = false
+    var sshFolderBookmark: Data?
+    var sshFolderPath: String?
+    var sshPublicKeyName: String?
+    var sshAlias = "omabox"
+    var sshManagedFiles: SSHManagedFiles?
 
     var effectiveRenderThreadCount: Int {
         let maximum = max(1, cpuCount)
@@ -59,6 +66,13 @@ extension VMPreferences {
         sharedFolderReadOnly = try container.decodeIfPresent(Bool.self, forKey: .sharedFolderReadOnly) ?? defaults.sharedFolderReadOnly
         machineIdentifier = try container.decodeIfPresent(Data.self, forKey: .machineIdentifier)
         macAddress = try container.decodeIfPresent(String.self, forKey: .macAddress)
+        sshEnabled = try container.decodeIfPresent(Bool.self, forKey: .sshEnabled) ?? defaults.sshEnabled
+        sshNeedsDisable = try container.decodeIfPresent(Bool.self, forKey: .sshNeedsDisable) ?? defaults.sshNeedsDisable
+        sshFolderBookmark = try container.decodeIfPresent(Data.self, forKey: .sshFolderBookmark)
+        sshFolderPath = try container.decodeIfPresent(String.self, forKey: .sshFolderPath)
+        sshPublicKeyName = try container.decodeIfPresent(String.self, forKey: .sshPublicKeyName)
+        sshAlias = try container.decodeIfPresent(String.self, forKey: .sshAlias) ?? defaults.sshAlias
+        sshManagedFiles = try container.decodeIfPresent(SSHManagedFiles.self, forKey: .sshManagedFiles)
     }
 }
 

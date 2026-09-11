@@ -15,8 +15,9 @@ struct CommandPaletteRow: View {
                 Text(command.subtitle).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            if isHighlighted {
-                Image(systemName: "return").font(.caption).foregroundStyle(.secondary)
+            if command == .resolution || isHighlighted {
+                Image(systemName: command == .resolution ? "chevron.right" : "return")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 12)

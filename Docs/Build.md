@@ -22,25 +22,42 @@ OMABOX_SIGNING_IDENTITY='Developer ID Application: Your Name (TEAMID)' \
 ./Scripts/build.sh
 ```
 
-Public distribution also requires notarization. The source minimum remains macOS 26 when built with a newer Xcode SDK. See [validation results](Validation.md) for the tested toolchain and current coverage.
+Public distribution also requires notarization. The source minimum remains macOS 26 when built with a newer Xcode SDK. See [archive and release instructions](Release.md) for distribution and [validation results](Validation.md) for the tested toolchain and current coverage.
 
 ## Set up your desktop
 
-The home page follows Helm's split splash layout, with Omarchy's mark, a screenshot from the native guest, and editable configuration. Select **Set Up Omarchy** to create a private sparse disk from the bundled template, then finish Linux's first-owner setup. Future launches offer **Start Omarchy**. The template contains no preconfigured personal account. Your desktop stays in the app's sandbox container when the application is closed or replaced.
+The home page uses a fixed 880 × 560-point split layout with editable configuration and the subtitle “Run Omarchy in a virtual machine.” Select **Set Up Omarchy** to create a private sparse disk from the bundled template, then finish Linux's first-owner setup. Future launches offer **Start Omarchy**. The full-width secondary **Settings** button in the welcome column opens General settings. The template contains no preconfigured personal account. Your desktop stays in the app's sandbox container when the application is closed or replaced.
 
-CPU, memory, and initial disk capacity are configurable. Hardware changes apply after shutdown. Disk capacity is fixed after installation. The home page also controls clipboard, microphone, shared folders, keyboard capture, display scale, and rendering threads.
+Choose CPU and memory from the preset blocks on Home. Available choices follow the Mac's supported resource limits, and hardware changes apply after shutdown. The Home disk row displays capacity as read-only text. Machine settings allows initial disk capacity to be configured before installation; capacity is fixed afterward. Home also controls clipboard, microphone, shared folders, keyboard capture, display scale, and rendering threads.
 
-Guest overrides in `~/.config/omabox/desktop.env` and `~/.config/omabox/hyprland.lua` persist across restarts. Set `OMABOX_DYNAMIC_RESOLUTION=0` in `desktop.env` to preserve a manually configured resolution when the Mac window changes size. See [guest configuration](../Guest/README.md) for the supported values and precedence.
+## Linux configuration files
+
+The separate **Linux Configuration Files** section opens **Environment** (`desktop.env`) and **Desktop** (`hyprland.lua`) in the Mac's TextEdit app. Omabox creates missing files as empty text files in `Omabox/LinuxConfiguration` inside its Application Support directory and preserves existing contents. Save changes in TextEdit, then restart the Linux desktop to apply them.
+
+The files are exposed to Linux read-only at `/mnt/omabox-config`, separately from the selected shared Mac folder. Values added to the Mac's `desktop.env` override matching values in the guest's existing environment configuration. The Mac's `hyprland.lua` runs after the guest's existing Lua configuration. Empty files leave those guest preferences unchanged; they do not replace the files in `~/.config/omabox`.
+
+Keep `desktop.env` as plain-text `KEY=VALUE` entries. For example, `LP_NUM_THREADS=2` selects two software-rendering threads, and `OMABOX_DYNAMIC_RESOLUTION=0` preserves a manually configured resolution when the Mac window changes size. The environment parser does not execute shell commands. See [guest configuration](../Guest/README.md) for supported values and the integration update procedure for existing desktops.
 
 ## Controls and integration
 
-- **Command-K** searches actions and settings while the desktop is running. **Command-comma** opens Settings at any time.
+- **Control-Option-Command-K** (**⌃⌥⌘K**) opens the host menu while the desktop is running or paused. Plain **Command-K** passes through to Linux. **Command-comma** opens Settings at any time.
+- The host menu includes Settings, **Resolution**, power controls, and **Release Keyboard**. **Resume** replaces **Pause** while the desktop is paused.
 - Keyboard capture is optional. **Control-Option-Escape** releases input; clicking the desktop restores the selected capture behavior.
 - Pause retains the running session in memory. Shutdown asks Linux to stop safely; Force Stop is an explicit fallback.
 - Text clipboard sharing uses a bounded Wayland-aware service over Virtio sockets. Images and clipboard file transfers are not implemented.
 - A selected Mac folder is available at `/mnt/omabox`. Read-only sharing is the default. Only the selected security-scoped folder is exposed.
 - Microphone access is optional and requires the Mac permission prompt. Linux applications also control their own recording permissions.
 - Linux screen sharing uses PipeWire and the guest desktop portal. Displaying the VM does not require access to the Mac screen.
+
+The running desktop fills the window, with the native traffic lights hidden. Its only regular host control is the **⌃⌥⌘K** text at the bottom left, which opens the host menu and hides after five seconds of inactivity. Pointer activity or returning focus to the window reveals it again. Accessibility focus and VoiceOver keep it visible. While paused, a material overlay covers the desktop with a pause symbol and a **Resume** capsule.
+
+Choose **Resolution** in the host menu to select **512 × 320**, **960 × 600**, **1280 × 800**, **1440 × 900**, or **1920 × 1200**. These values specify actual guest framebuffer pixels, independently of the Mac display's Retina scale. A fixed preset retains that guest resolution when the Mac window changes size. **Fit to screen** fits the window to the current screen's usable area and restores automatic guest display resizing. The host menu adapts to the 512 × 320 size.
+
+## Optional SSH access
+
+**Settings → Sharing → SSH Access** lets you choose an **SSH Folder** and select a **Public Key**. Only the public key is installed for Linux's non-root first-owner account; private key contents stay on the Mac. Setup waits until that owner account exists. The native settings flow, SSH login, SFTP, and access revocation have passed checks using disposable keys and a disposable guest; see [validation results](Validation.md).
+
+The integration uses a host-only Virtio socket channel on port 4041 to configure a key-only guest SSH service on port 2222. It manages a Mac SSH alias and pins the guest host key while preserving unrelated SSH configuration. The selected SSH folder is not shared with Linux. See [SSH setup and existing-desktop updates](SSH.md) and [the testing guide](Testing.md).
 
 ## Graphics and guest compatibility
 

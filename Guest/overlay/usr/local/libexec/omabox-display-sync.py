@@ -131,8 +131,7 @@ def validated_scale(value):
     return float(value)
 
 
-def parse_dynamic_resolution(text):
-    enabled = True
+def parse_dynamic_resolution(text, enabled=True):
     for line in text.splitlines():
         if line == "OMABOX_DYNAMIC_RESOLUTION=0":
             enabled = False
@@ -141,15 +140,18 @@ def parse_dynamic_resolution(text):
     return enabled
 
 
-def dynamic_resolution_enabled(path):
-    try:
-        with path.open("r", encoding="utf-8") as source:
-            text = source.read(32769)
-    except FileNotFoundError:
-        return True
-    if len(text) > 32768:
-        raise ValueError("Display settings exceed the size limit")
-    return parse_dynamic_resolution(text)
+def dynamic_resolution_enabled(path, host_path=Path("/mnt/omabox-config/desktop.env")):
+    enabled = True
+    for settings in (path, host_path):
+        try:
+            with settings.open("r", encoding="utf-8") as source:
+                text = source.read(32769)
+        except FileNotFoundError:
+            continue
+        if len(text) > 32768:
+            raise ValueError("Display settings exceed the size limit")
+        enabled = parse_dynamic_resolution(text, enabled)
+    return enabled
 
 
 class HotplugDebouncer:

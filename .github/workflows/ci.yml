@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guest:
+    name: Guest service tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Test guest configuration and display synchronization
+        run: bash Scripts/ci.sh guest
+
+  native:
+    name: Native build and unit tests
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install pinned Tuist
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c
+        with:
+          version: '2026.9.5'
+          sha256: 6274b68122a837c514374e96dabb18a9e3562bdd28528b4b3feea9d8eb615d98
+          tool_versions: |
+            tuist 4.207.0
+      - name: Build app and test bundles, then run unit tests
+        run: bash Scripts/ci.sh native
+      - name: Upload test results and build logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-test-results
+          path: |
+            build/ci/run.*/UnitTests.xcresult
+            build/ci/run.*/*.log
+            build/ci/run.*/toolchain.txt
+          retention-days: 7
+          if-no-files-found: warn

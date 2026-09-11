@@ -95,20 +95,17 @@ struct MachinePane: View {
                     .settingFootnote()
             }
 
-            Section("Desktop customization") {
-                Text("You can change blur, shadows, animations, and desktop behavior inside Linux.")
-                    .settingFootnote()
-                LabeledContent("Desktop configuration") {
-                    Text("~/.config/omabox/hyprland.lua")
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
+            Section("Linux Configuration Files") {
+                ForEach(LinuxConfigurationFile.allCases, id: \.self) { file in
+                    LabeledContent(file.fileName) {
+                        Button("Open in Editor") {
+                            Task { await model.openLinuxConfigurationFile(file) }
+                        }
+                        .accessibilityLabel("Open \(file.fileName) in editor")
+                        .accessibilityIdentifier("settings.configuration.\(file.rawValue)")
+                    }
                 }
-                LabeledContent("Environment overrides") {
-                    Text("~/.config/omabox/desktop.env")
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                }
-                Text("These files are inside Linux. Your overrides take priority over Omabox settings and stay in place when the app updates.")
+                Text("Edit on your Mac. Saved changes apply when Linux starts and take priority over its local configuration.")
                     .settingFootnote()
             }
 

@@ -8,21 +8,24 @@ struct DesktopView: View {
     let onPalette: () -> Void
     let onCommand: (DesktopCommand) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @Environment(\.appearsActive) private var appearsActive
+    @FocusState private var isMenuButtonFocused: Bool
+    @State private var isHoveringMenuButton = false
+    @State private var controls = DesktopControlsPresentation()
     @State private var confirmsForceStop = false
 
     var body: some View {
         ZStack {
-            VisualEffectBackground(material: .underWindowBackground).ignoresSafeArea()
             Group {
-                if model.virtualMachine != nil && model.state.hasActiveSession {
-                    VStack(spacing: 0) {
-                        toolbar
-                        content
-                        footer
-                    }
-                    .padding(.top, 28)
+                if hasDesktop {
+                    desktop
                 } else {
                     WelcomeView(model: model, onSettings: onSettings)
+                        .background {
+                            VisualEffectBackground(material: .underWindowBackground)
+                                .ignoresSafeArea()
+                        }
                 }
             }
             .accessibilityHidden(palette.isPresented)
@@ -34,11 +37,11 @@ struct DesktopView: View {
                     .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.97)))
             }
         }
-        .frame(minWidth: 760, minHeight: 610)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: palette.isPresented)
         .task { await model.task() }
         .onChange(of: model.state) { _, state in
-            if state != .running { palette.close() }
+            if state != .running && state != .paused { palette.close() }
+            controls.reveal()
         }
         .alert("Force stop Omarchy?", isPresented: $confirmsForceStop) {
             Button("Keep Running", role: .cancel) {}
@@ -48,93 +51,136 @@ struct DesktopView: View {
         }
     }
 
-    private var toolbar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "shippingbox.fill").font(.title3).symbolRenderingMode(.hierarchical)
-            Text("Omabox").font(.headline)
-            Spacer()
-            HStack(spacing: 6) {
-                Circle().fill(model.state.isRunning ? Color.green : Color.secondary).frame(width: 5, height: 5)
-                Text(model.state.title).font(.caption.weight(.medium))
-            }
-            .foregroundStyle(.secondary)
-            .padding(.trailing, 10)
-            Button { onCommand(.settings) } label: { Image(systemName: "gearshape") }
-                .help("Settings (⌘,)")
-                .accessibilityLabel("Settings")
-                .accessibilityIdentifier("desktop.settings")
-                .buttonStyle(.glass)
-            Button(action: onPalette) { Text("⌘ K").font(.callout.monospaced()) }
-                .help("Command palette")
-                .accessibilityLabel("Command palette")
-                .accessibilityIdentifier("desktop.palette")
-                .buttonStyle(.glass)
-                .disabled(model.state != .running)
-        }
-        .padding(.horizontal, 26)
-        .padding(.bottom, 16)
+    private var keepsControlsVisible: Bool {
+        voiceOverEnabled || isMenuButtonFocused || isHoveringMenuButton || palette.isPresented
+    }
+
+    private var hasDesktop: Bool {
+        model.virtualMachine != nil && model.state.hasActiveSession
     }
 
     @ViewBuilder
-    private var content: some View {
-        if let machine = model.virtualMachine, model.state.isRunning || model.state == .paused || model.state == .stopping {
+    private var desktop: some View {
+        if let machine = model.virtualMachine {
             ZStack {
                 VirtualMachineDisplay(
                     machine: machine,
                     capturesSystemKeys: model.state == .running && model.preferences.captureSystemKeys && !palette.isPresented,
                     acceptsGuestInput: model.state == .running && !palette.isPresented
                 )
-                    .allowsHitTesting(model.state == .running && !palette.isPresented)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
+                .allowsHitTesting(model.state == .running && !palette.isPresented)
+                .accessibilityHidden(model.state != .running || palette.isPresented)
                 if model.state == .paused {
-                    VStack(spacing: 14) {
-                        Image(systemName: "pause.circle.fill").font(.system(size: 42)).symbolRenderingMode(.hierarchical)
-                        Text("Desktop paused").font(.title2.weight(.semibold))
-                        Button("Resume desktop") { Task { await model.resumeButtonTapped() } }
-                            .buttonStyle(.glassProminent)
-                    }
-                    .padding(32)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 20))
+                    pausedOverlay
+                } else if model.state == .starting || model.state == .stopping {
+                    activityOverlay
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .bottom) {
-                if let message = model.errorMessage {
-                    HStack(spacing: 12) {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .font(.callout)
-                            .textSelection(.enabled)
-                        Spacer()
-                        Button("Force Stop", role: .destructive) { confirmsForceStop = true }
-                    }
-                    .padding(16)
-                    .background(.regularMaterial, in: .rect(cornerRadius: 12))
-                    .padding(16)
+                errorBanner
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, controls.isVisible ? 72 : 20)
+            }
+            .overlay(alignment: .bottomLeading) {
+                if model.state == .running || model.state == .paused {
+                    commandAffordance
+                        .padding(20)
+                        .opacity(controls.isVisible ? 1 : 0)
+                        .allowsHitTesting(controls.isVisible)
                 }
             }
-            .clipShape(.rect(cornerRadius: 12))
-            .padding(.horizontal, 12)
-        } else {
-            WelcomeView(model: model, onSettings: onSettings)
+            .onContinuousHover { phase in
+                if case .active = phase { controls.reveal() }
+            }
+            .onChange(of: appearsActive) { _, isActive in
+                if isActive { controls.reveal() }
+            }
+            .onChange(of: keepsControlsVisible, initial: true) { _, keepsVisible in
+                controls.setPersistent(keepsVisible)
+            }
+            .onAppear { controls.reveal() }
+            .task(id: controls.presentationID) { await controls.hideAfterInactivity() }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: controls.isVisible)
         }
     }
 
-    private var footer: some View {
-        HStack {
-            Label("Omarchy", systemImage: "desktopcomputer")
-            Spacer()
-            if model.state.isRunning {
-                Text("⌃ ⌥ esc releases your keyboard")
-                Button("Pause", systemImage: "pause") { Task { await model.pauseButtonTapped() } }
-                    .labelStyle(.iconOnly)
-                    .help("Pause desktop")
-                Button("Shut down", systemImage: "power") { Task { await model.shutDownButtonTapped() } }
-                    .labelStyle(.iconOnly)
-                    .help("Shut down Omarchy")
+    private var commandAffordance: some View {
+        Button(action: onPalette) {
+            Text("⌃ ⌥ ⌘ K")
+                .font(.callout.monospaced().weight(.medium))
+                .padding(.horizontal, 4)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .focused($isMenuButtonFocused)
+        .onHover { isHoveringMenuButton = $0 }
+        .help("Open command menu (Control–Option–Command–K)")
+        .accessibilityLabel("Open command menu")
+        .accessibilityHint("Control–Option–Command–K")
+        .accessibilityIdentifier("desktop.palette")
+    }
+
+    private var pausedOverlay: some View {
+        ZStack {
+            Rectangle().fill(.regularMaterial).ignoresSafeArea()
+            VStack(spacing: 30) {
+                Image(systemName: "pause.fill")
+                    .font(.system(size: 64, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Button {
+                    Task { await model.resumeButtonTapped() }
+                } label: {
+                    HStack(spacing: 10) {
+                        if model.isBusy { ProgressView().controlSize(.small) }
+                        Text("Resume")
+                    }
+                    .font(.title3.weight(.semibold))
+                    .frame(minWidth: 150)
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .disabled(model.isBusy)
+                .accessibilityLabel("Resume paused desktop")
+                .accessibilityIdentifier("desktop.resume")
             }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 26)
-        .padding(.vertical, 16)
+    }
+
+    private var activityOverlay: some View {
+        ZStack {
+            Rectangle().fill(.regularMaterial).ignoresSafeArea()
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                    .accessibilityIdentifier("desktop.activity")
+                Text(model.state.detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(24)
+        }
+    }
+
+    @ViewBuilder
+    private var errorBanner: some View {
+        if let message = model.errorMessage {
+            HStack(spacing: 12) {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .textSelection(.enabled)
+                Spacer()
+                Button("Force Stop", role: .destructive) { confirmsForceStop = true }
+            }
+            .padding(16)
+            .background(.regularMaterial, in: .rect(cornerRadius: 12))
+            .accessibilityIdentifier("desktop.runtimeError")
+        }
     }
 }

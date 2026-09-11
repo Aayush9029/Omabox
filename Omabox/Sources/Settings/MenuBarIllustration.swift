@@ -16,7 +16,7 @@ struct MenuBarIllustration: View {
                     .fill(.ultraThinMaterial)
                     .frame(height: menuBar)
                 HStack(spacing: menuBar * 0.45) {
-                    FlareBolt()
+                    OmaboxBolt()
                         .fill(.primary)
                         .frame(width: menuBar * 0.42, height: menuBar * 0.5)
                     Capsule().fill(.primary.opacity(0.45)).frame(width: menuBar * 0.7, height: menuBar * 0.28)

@@ -11,11 +11,14 @@ enum ReservedHostKeyboardCommand: Equatable {
     case settings
     case releaseInput
 
+    static let paletteKeyEquivalent = "k"
+    static let paletteModifierFlags: NSEvent.ModifierFlags = [.control, .option, .command]
+
     init?(event: NSEvent) {
         guard event.type == .keyDown else { return nil }
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
         let characters = event.charactersIgnoringModifiers?.lowercased()
-        if modifiers == .command, characters == "k" {
+        if modifiers == Self.paletteModifierFlags, characters == Self.paletteKeyEquivalent {
             self = .palette
         } else if modifiers == .command, characters == "," {
             self = .settings

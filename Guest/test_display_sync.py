@@ -2,6 +2,7 @@ import importlib.util
 import math
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 
@@ -63,6 +64,23 @@ class DisplayPreferencesTests(unittest.TestCase):
         for text in ("# OMABOX_DYNAMIC_RESOLUTION=0", "OTHER_OMABOX_DYNAMIC_RESOLUTION=0"):
             with self.subTest(text=text):
                 self.assertIs(display_sync.parse_dynamic_resolution(text), True)
+
+    def test_host_dynamic_resolution_overrides_guest_and_empty_host_preserves_guest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            guest = Path(directory) / "guest.env"
+            host = Path(directory) / "host.env"
+            guest.write_text("OMABOX_DYNAMIC_RESOLUTION=0\n")
+            self.assertFalse(display_sync.dynamic_resolution_enabled(guest, host))
+            host.write_text("")
+            self.assertFalse(display_sync.dynamic_resolution_enabled(guest, host))
+            host.write_text("OMABOX_DYNAMIC_RESOLUTION=1\n")
+            self.assertTrue(display_sync.dynamic_resolution_enabled(guest, host))
+            guest.write_text("OMABOX_DYNAMIC_RESOLUTION=1\n")
+            host.write_text("OMABOX_DYNAMIC_RESOLUTION=0\r\n")
+            self.assertFalse(display_sync.dynamic_resolution_enabled(guest, host))
+            host.write_text("OMABOX_DYNAMIC_RESOLUTION=invalid\n")
+            self.assertTrue(display_sync.dynamic_resolution_enabled(guest, host))
+            self.assertEqual(guest.read_text(), "OMABOX_DYNAMIC_RESOLUTION=1\n")
 
     def test_scale_accepts_finite_numbers_including_endpoints(self):
         for value in (0.25, 0.5, 1, 1.25, 2, 4):
