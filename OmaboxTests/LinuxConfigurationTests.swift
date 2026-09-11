@@ -9,7 +9,7 @@ import Testing
 @Suite(.dependencies)
 @MainActor
 struct LinuxConfigurationTests {
-    @Test func createsEmptyPrivateConfigurationFilesInAPrivateFolder() throws {
+    @Test func createsPrivateConfigurationFilesWithOneHelpfulCommentInAPrivateFolder() throws {
         let root = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let folder = root.appending(path: "LinuxConfiguration", directoryHint: .isDirectory)
@@ -19,13 +19,18 @@ struct LinuxConfigurationTests {
         expectNoDifference(prepared, folder)
         expectNoDifference(try permissions(at: folder), 0o700)
         expectNoDifference(try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted(), ["desktop.env", "hyprland.lua"])
-        for name in ["desktop.env", "hyprland.lua"] {
-            let file = folder.appending(path: name)
-            expectNoDifference(try Data(contentsOf: file), Data())
+        for configuration in LinuxConfigurationFile.allCases {
+            let file = folder.appending(path: configuration.fileName)
+            let initialBytes = try Data(contentsOf: file)
+            try expectHelpfulComment(initialBytes, for: configuration)
             expectNoDifference(try permissions(at: file), 0o600)
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
             #expect(values.isRegularFile == true)
             #expect(values.isSymbolicLink != true)
+
+            _ = try LinuxConfigurationFiles.prepareDirectory(at: folder)
+
+            expectNoDifference(try Data(contentsOf: file), initialBytes)
         }
     }
 
@@ -72,8 +77,48 @@ struct LinuxConfigurationTests {
         expectNoDifference(try fileIdentity(at: existingURL), identity)
         let missing: LinuxConfigurationFile = existing == .environment ? .desktop : .environment
         let createdURL = root.appending(path: missing.fileName)
-        expectNoDifference(try Data(contentsOf: createdURL), Data())
+        try expectHelpfulComment(Data(contentsOf: createdURL), for: missing)
         expectNoDifference(try permissions(at: createdURL), 0o600)
+    }
+
+    @Test(arguments: LinuxConfigurationFile.allCases, [0o600, 0o640])
+    func seedsAnExistingEmptyFileOnceWithoutReplacingItOrChangingItsPermissions(_ file: LinuxConfigurationFile, _ mode: Int) throws {
+        let root = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appending(path: file.fileName)
+        try write(Data(), to: url, permissions: mode)
+        let identity = try fileIdentity(at: url)
+
+        _ = try LinuxConfigurationFiles.prepareDirectory(at: root)
+
+        let seededBytes = try Data(contentsOf: url)
+        try expectHelpfulComment(seededBytes, for: file)
+        expectNoDifference(try permissions(at: url), mode)
+        expectNoDifference(try fileIdentity(at: url), identity)
+
+        _ = try LinuxConfigurationFiles.prepareDirectory(at: root)
+        _ = try LinuxConfigurationFiles.prepareDirectory(at: root)
+
+        expectNoDifference(try Data(contentsOf: url), seededBytes)
+        expectNoDifference(try permissions(at: url), mode)
+        expectNoDifference(try fileIdentity(at: url), identity)
+    }
+
+    @Test(arguments: LinuxConfigurationFile.allCases, [" ", "\n\t \r\n"])
+    func preservesWhitespaceOnlyFilesAsUserContent(_ file: LinuxConfigurationFile, _ whitespace: String) throws {
+        let root = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appending(path: file.fileName)
+        let bytes = Data(whitespace.utf8)
+        try write(bytes, to: url, permissions: 0o400)
+        let identity = try fileIdentity(at: url)
+
+        _ = try LinuxConfigurationFiles.prepareDirectory(at: root)
+        _ = try LinuxConfigurationFiles.prepareDirectory(at: root)
+
+        expectNoDifference(try Data(contentsOf: url), bytes)
+        expectNoDifference(try permissions(at: url), 0o400)
+        expectNoDifference(try fileIdentity(at: url), identity)
     }
 
     @Test(arguments: [false, true])
@@ -199,6 +244,17 @@ struct LinuxConfigurationTests {
         let root = URL.temporaryDirectory.appending(path: "OmaboxLinuxConfigurationTests-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         return root
+    }
+
+    private func expectHelpfulComment(_ bytes: Data, for file: LinuxConfigurationFile) throws {
+        let text = try #require(String(data: bytes, encoding: .utf8))
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        expectNoDifference(lines.count, 2)
+        #expect(text.hasSuffix("\n"))
+        let line = try #require(lines.first)
+        let prefix = file == .environment ? "# " : "-- "
+        #expect(line.hasPrefix(prefix))
+        #expect(line.dropFirst(prefix.count).split(whereSeparator: \.isWhitespace).count >= 3)
     }
 
     private func write(_ bytes: Data, to url: URL, permissions: Int) throws {

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct HomeResourcePresetRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     let symbol: String
     let unit: String
@@ -28,16 +30,24 @@ struct HomeResourcePresetRow: View {
             }
             .fixedSize(horizontal: true, vertical: false)
             Spacer(minLength: 0)
-            HStack(spacing: 4) {
+            HStack(spacing: 2) {
                 ForEach(values, id: \.self) { value in
                     presetButton(value)
                 }
+            }
+            .padding(3)
+            .background(.primary.opacity(0.045), in: .rect(cornerRadius: 10))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(.primary.opacity(0.04), lineWidth: 0.5)
+                    .allowsHitTesting(false)
             }
             .frame(maxWidth: 280)
         }
         .padding(.vertical, 10)
         .frame(minHeight: 58)
         .accessibilityElement(children: .contain)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: selection)
     }
 
     private func presetButton(_ value: Int) -> some View {
@@ -46,15 +56,22 @@ struct HomeResourcePresetRow: View {
             selection = value
         } label: {
             Text("\(value)")
-                .font(.system(size: 12, weight: isSelected ? .semibold : .regular, design: .rounded))
+                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
                 .monospacedDigit()
-                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                .frame(minWidth: 24, maxWidth: .infinity, minHeight: 32)
-                .background(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.045), in: .rect(cornerRadius: 5))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(isSelected ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.08), lineWidth: 1)
+                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                .frame(minWidth: 26, maxWidth: .infinity, minHeight: 30)
+                .background {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(.white.opacity(colorScheme == .dark ? 0.13 : 0.88))
+                            .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 7)
+                                    .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+                            }
+                    }
                 }
+                .contentShape(.rect(cornerRadius: 7))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(value) \(unit)")

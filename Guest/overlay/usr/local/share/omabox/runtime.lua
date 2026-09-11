@@ -10,7 +10,13 @@ if gdk_scale then
 elseif type(scale) == "number" then
   hl.env("GDK_SCALE", tostring(math.max(1, math.floor(scale))))
 end
+dofile("/usr/local/share/omabox/display-policy.lua")
+
 local preferences = os.getenv("OMABOX_GUEST_PREFERENCES") or (os.getenv("HOME") .. "/.config/omabox")
 dofile(preferences .. "/hyprland.lua")
 
 pcall(dofile, "/mnt/omabox-config/hyprland.lua")
+
+hl.on("config.reloaded", function()
+  hl.exec_cmd("systemctl --user --no-block try-restart omabox-display-sync.service")
+end)

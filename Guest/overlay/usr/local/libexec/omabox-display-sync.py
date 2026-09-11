@@ -131,6 +131,30 @@ def validated_scale(value):
     return float(value)
 
 
+
+def automatic_scale(width, height):
+    if any(type(value) is not int or not 64 <= value <= 8192 for value in (width, height)):
+        raise ValueError("Unsupported automatic scale dimensions")
+    ratio = max(0.5, min(4.0, width / 1280, height / 800))
+    target = math.floor(ratio * 4 + 0.5) / 4
+    candidates = [numerator / 120 for numerator in range(60, 481)
+                  if (width * 120) % numerator == 0 and (height * 120) % numerator == 0]
+    return min(candidates, key=lambda scale: (abs(scale - target), abs(scale - ratio), -scale))
+
+
+def scales_match(actual, requested):
+    return math.isclose(validated_scale(actual), requested, abs_tol=0.0051)
+
+
+def display_policy(output, description, environment=None, deadline=None):
+    arguments = json.dumps(output) + "," + json.dumps(description)
+    value = hyprctl("repl", "return omabox_display_policy(" + arguments + ")", environment=environment, deadline=deadline)
+    if value in ("automatic", "manual"):
+        return value, None
+    if value.startswith("fixed:"):
+        return value, validated_scale(float(value[6:]))
+    raise ValueError("The desktop display policy is unavailable")
+
 def parse_dynamic_resolution(text, enabled=True):
     for line in text.splitlines():
         if line == "OMABOX_DYNAMIC_RESOLUTION=0":
@@ -278,22 +302,30 @@ class DisplaySynchronizer:
         connector, match, monitor = outputs[0]
         mode = self.reader.preferred_mode(Path("/dev/dri") / match[1], connector)
         mode_string = modeline(mode)
-        scale = validated_scale(monitor.get("scale"))
+        output = match[2]
+        description = monitor.get("description", "")
+        if not isinstance(description, str):
+            raise ValueError("Invalid display description")
+        policy, fixed_scale = display_policy(output, description, self.environment, deadline)
+        if policy == "manual":
+            self.last_applied.clear()
+            return
+        scale = automatic_scale(mode["hdisplay"], mode["vdisplay"]) if policy == "automatic" else fixed_scale
         fingerprint = (tuple(mode[name] for name in MODE_FIELDS), scale)
         output = match[2]
         geometry = (mode["hdisplay"], mode["vdisplay"])
-        if (monitor.get("width"), monitor.get("height")) == geometry:
+        if (monitor.get("width"), monitor.get("height")) == geometry and scales_match(monitor.get("scale"), scale):
             self.last_applied[output] = fingerprint
             return
         if self.last_applied.get(output) == fingerprint:
             return
-        rule = f'hl.monitor({{ output = "", mode = "{mode_string}", scale = {scale:.8g} }})'
+        rule = f'omabox_apply_display({json.dumps(output)},{json.dumps(description)},{json.dumps(policy)},{{ output = "", mode = "{mode_string}", scale = {scale:.12g} }})'
         if hyprctl("eval", rule, environment=self.environment, deadline=deadline) != "ok":
             raise RuntimeError("Compositor rejected the display mode")
         self.last_applied[output] = fingerprint
         current = next((item for item in self.monitors(deadline) if item.get("name") == output), None)
         if current and (current.get("width"), current.get("height")) == geometry:
-            if math.isclose(validated_scale(current.get("scale")), scale, abs_tol=1e-7):
+            if scales_match(current.get("scale"), scale):
                 print(f"Display synchronized: {geometry[0]}x{geometry[1]} scale {scale:g}", flush=True)
 
 

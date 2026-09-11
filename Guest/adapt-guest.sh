@@ -44,6 +44,6 @@ test -x /usr/bin/ip
 python3 -c 'import ctypes, ctypes.util; ctypes.CDLL(ctypes.util.find_library("drm") or "libdrm.so.2")'
 test -f /var/lib/omarchy/provisioning/pending
 printf 'omabox\n' > /etc/hostname
-printf '3\n' > /usr/local/share/omabox/image-version
+printf '4\n' > /usr/local/share/omabox/image-version
 sync
 echo OMABOX_ADAPTATION_COMPLETE

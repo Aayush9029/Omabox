@@ -123,8 +123,8 @@ def main():
         metadata = {
             "schemaVersion": 1,
             "architecture": "aarch64",
-            "version": "0.3.0",
-            "integrationVersion": 3,
+            "version": "0.4.0",
+            "integrationVersion": 4,
             "kernelFile": "kernel",
             "initramfsFile": "initramfs",
             "diskFile": "rootfs.raw",

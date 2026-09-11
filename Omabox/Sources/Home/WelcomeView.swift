@@ -37,9 +37,9 @@ struct WelcomeView: View {
                     .accessibilityIdentifier("desktop.error")
                     .padding(.bottom, 16)
             }
-            primaryAction
             settingsButton
-                .padding(.top, 12)
+                .padding(.bottom, 8)
+            primaryAction
         }
     }
 

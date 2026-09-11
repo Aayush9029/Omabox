@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
 
 MODULE_PATH = Path(__file__).parent / "overlay/usr/local/libexec/omabox-display-sync.py"
@@ -94,6 +95,60 @@ class DisplayPreferencesTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     display_sync.validated_scale(value)
+
+
+class AutomaticScaleTests(unittest.TestCase):
+    def test_presets_scale_the_logical_workspace(self):
+        for width, height, expected in [(512,320,0.5),(960,600,0.75),(1280,800,1),(1440,900,1.25),(1920,1200,1.5),(2560,1600,2),(4096,2560,3.2)]:
+            with self.subTest(width=width, height=height):
+                self.assertEqual(display_sync.automatic_scale(width, height), expected)
+
+    def test_arbitrary_fit_sizes_always_have_integral_logical_dimensions(self):
+        for width, height in [(1278,744),(1552,1024),(1427,888),(1918,1078),(2304,1438),(8192,8192),(64,64)]:
+            with self.subTest(width=width, height=height):
+                scale = display_sync.automatic_scale(width, height)
+                self.assertGreaterEqual(scale, 0.5)
+                self.assertLessEqual(scale, 4)
+                self.assertAlmostEqual(width / scale, round(width / scale))
+                self.assertAlmostEqual(height / scale, round(height / scale))
+
+    def test_scale_comparison_accounts_for_hyprctl_decimal_rounding(self):
+        self.assertTrue(display_sync.scales_match(1.07, 128 / 120))
+        self.assertFalse(display_sync.scales_match(1.08, 128 / 120))
+
+    def test_rejects_invalid_geometry(self):
+        for width, height in [(0,800),(800,8193),(True,800),(800,2.5)]:
+            with self.assertRaises(ValueError):
+                display_sync.automatic_scale(width, height)
+
+    def synchronizer(self, directory):
+        root = Path(directory)
+        connector = root / "card0-Virtual-1"
+        connector.mkdir()
+        (connector / "status").write_text("connected")
+        mode = preferred_mode(hdisplay=1280,hsync_start=1300,hsync_end=1320,htotal=1440,vdisplay=800,vsync_start=805,vsync_end=810,vtotal=850)
+        synchronizer = display_sync.DisplaySynchronizer(root / "desktop.env", root, Mock(preferred_mode=Mock(return_value=mode)))
+        synchronizer.environment = {}
+        synchronizer.monitors = Mock(side_effect=[
+            [{"name":"Virtual-1","description":"","width":1280,"height":800,"scale":2}],
+            [{"name":"Virtual-1","description":"","width":1280,"height":800,"scale":1}],
+        ])
+        return synchronizer
+
+    def test_scale_updates_even_when_pixel_dimensions_already_match(self):
+        with tempfile.TemporaryDirectory() as directory:
+            synchronizer = self.synchronizer(directory)
+            with patch.object(display_sync, "dynamic_resolution_enabled", return_value=True), patch.object(display_sync, "display_policy", return_value=("automatic",None)), patch.object(display_sync, "hyprctl", return_value="ok") as control:
+                synchronizer.update()
+                self.assertIn("scale = 1", control.call_args.args[1])
+                self.assertIn("omabox_apply_display", control.call_args.args[1])
+
+    def test_manual_monitor_policy_is_not_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            synchronizer = self.synchronizer(directory)
+            with patch.object(display_sync, "dynamic_resolution_enabled", return_value=True), patch.object(display_sync, "display_policy", return_value=("manual",None)), patch.object(display_sync, "hyprctl") as control:
+                synchronizer.update()
+                control.assert_not_called()
 
 
 class ModelineTests(unittest.TestCase):

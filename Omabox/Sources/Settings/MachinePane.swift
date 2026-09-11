@@ -90,19 +90,21 @@ struct MachinePane: View {
                 .disabled(!canChangeHardware)
 
                 Text(canChangeHardware
-                    ? "Changes apply at the next start. Automatic rendering uses the processors assigned to Linux."
+                    ? "Changes apply at the next start. Automatic scale fits the desktop when its resolution changes. Automatic rendering uses the processors assigned to Linux."
                     : "Shut down Linux to change its display scale or rendering threads.")
                     .settingFootnote()
             }
 
             Section("Linux Configuration Files") {
                 ForEach(LinuxConfigurationFile.allCases, id: \.self) { file in
-                    LabeledContent(file.fileName) {
-                        Button("Open in Editor") {
+                    LabeledContent {
+                        Button("Open in Editor", systemImage: "square.and.pencil") {
                             Task { await model.openLinuxConfigurationFile(file) }
                         }
                         .accessibilityLabel("Open \(file.fileName) in editor")
                         .accessibilityIdentifier("settings.configuration.\(file.rawValue)")
+                    } label: {
+                        Label(file.fileName, systemImage: file.symbol)
                     }
                 }
                 Text("Edit on your Mac. Saved changes apply when Linux starts and take priority over its local configuration.")

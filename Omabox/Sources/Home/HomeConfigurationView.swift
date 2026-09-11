@@ -171,8 +171,8 @@ struct HomeConfigurationView: View {
     }
 
     private func configurationFileRow(_ file: LinuxConfigurationFile) -> some View {
-        HomeConfigurationRow(title: file.title, symbol: "doc.text", subtitle: file.fileName) {
-            Button("Open in Editor") {
+        HomeConfigurationRow(title: file.title, symbol: file.symbol, subtitle: file.fileName) {
+            Button("Open in Editor", systemImage: "square.and.pencil") {
                 Task { await model.openLinuxConfigurationFile(file) }
             }
             .disabled(!canChangeHardware)

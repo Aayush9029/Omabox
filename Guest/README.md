@@ -10,7 +10,25 @@ Run `Scripts/check-guest.sh` from the repository root to verify an isolated copy
 
 Run `python3 Scripts/QA/check_reliability.py` for networking, shared-folder permissions and persistence, silent PCM playback, pause/resume, live display resizing, and idle CPU measurements. The native helper discards all guest audio. These checks use separate disposable copies.
 
-Guest preferences live in `~/.config/omabox/desktop.env` and `~/.config/omabox/hyprland.lua`. For example, `LP_NUM_THREADS=2` changes software-rendering concurrency, and `OMABOX_DISPLAY_SCALE=2` requests twice the display scale on the next desktop start. Set `OMABOX_DYNAMIC_RESOLUTION=0` in `desktop.env` to preserve a manually configured guest resolution when the Mac window changes size. Remove that entry or set it to `1` to resume automatic sizing on the next display change. Preferences are literal assignments and never execute shell commands.
+Guest preferences live in `~/.config/omabox/desktop.env` and `~/.config/omabox/hyprland.lua`. For example, `LP_NUM_THREADS=2` changes software-rendering concurrency, and a numeric `OMABOX_DISPLAY_SCALE=2` requests a fixed 2× display scale on the next desktop start. Environment preferences are literal assignments and never execute shell commands.
+
+## Display scaling
+
+Automatic scale adjusts the Linux compositor when the framebuffer resolution changes. It aims for a workspace near 1280 × 800 logical pixels, selecting a scale from 0.5× to 4×. The target moves in quarter steps, then uses the nearest fraction supported by Hyprland. The standard resolution presets produce these scales:
+
+| Framebuffer pixels | Automatic scale |
+| --- | --- |
+| 512 × 320 | 0.5× |
+| 960 × 600 | 0.75× |
+| 1280 × 800 | 1× |
+| 1440 × 900 | 1.25× |
+| 1920 × 1200 | 1.5× |
+
+The display service reacts to DRM resolution events and uses the actual preferred framebuffer dimensions. Fit to screen can produce a slightly rounded Linux framebuffer; for example, a 1500 × 940 request can become 1496 × 940. The selected Automatic scale follows that actual size.
+
+A numeric `OMABOX_DISPLAY_SCALE` or an explicit numeric scale in a matching Lua monitor rule is preserved. Hyprland may adjust an incompatible scale so both framebuffer dimensions produce whole logical pixels. Custom mode, rotation, and mirroring rules are treated as manual configuration. Normal monitor-rule changes made through Lua are observed during the session. After switching a rule to `scale = 'auto'` through live Lua evaluation, reload the configuration or restart Linux. The reload restores the appropriate Automatic scale without another framebuffer change and preserves explicit manual rules. Environment files and startup Lua are loaded when the Linux desktop starts. Automatic scaling does not rewrite saved preferences.
+
+Set `OMABOX_DYNAMIC_RESOLUTION=0` in `desktop.env` to disable the display synchronizer and keep a manually configured guest resolution. Remove that entry or set it to `1` to resume automatic sizing on the next display change. To return to Automatic scale, select Automatic in the Mac app, remove explicit scale or monitor overrides, and restart Linux.
 
 See [runtime documentation](../Docs/Virtualization.md) for architecture, limitations, provenance, and validation requirements.
 
@@ -20,16 +38,16 @@ First-owner provisioning records the exact account name and UID in a root-owned 
 
 Run `python3 -B -m unittest discover -s Guest -p 'test_ssh*.py'` for protocol and owner-marker checks. `python3 Scripts/QA/check_ssh.py` uses a disposable guest and new test keys to verify actual host-to-guest login, denial, revocation, and reboot behavior. Existing prepared disks keep their data and do not acquire this integration automatically.
 
-To add SSH integration to an existing disk, share a folder containing this repository with Linux, then run the updater from the Linux terminal:
+To update an existing disk's Omabox integration, share a folder containing this repository with Linux, then run the updater from the Linux terminal:
 
 ```sh
-sudo bash /mnt/omabox/Guest/install-ssh-integration.sh
+sudo bash /mnt/omabox/Guest/install-integration.sh
 ```
 
-Adjust the path if the repository is nested inside the shared folder. This updates only Omabox's integration files and services. It preserves the Linux account and disk contents, and leaves SSH off until enabled from the Mac app. For a completed first-owner setup, the updater requires its original root-owned autologin configuration to identify the account; it stops with an error if that identity is unavailable. Finish first-owner setup before connecting. After the update, use the Mac SSH setting again.
+Adjust the path if the repository is nested inside the shared folder. This updates only Omabox's integration files and services. It preserves the Linux account, disk contents, and preference files, and leaves SSH off until enabled from the Mac app. For a completed first-owner setup, the updater requires its recorded owner or original root-owned autologin configuration to identify the account; it stops with an error if that identity is unavailable. Finish first-owner setup before connecting. Shut Linux down and start it from the updated Mac app after the update.
 
-The Mac app's Linux Configuration Files are shared separately from the optional user folder, through the read-only `omabox-config` mount at `/mnt/omabox-config`. Integration version 3 loads `desktop.env` after the guest's environment preferences and loads `hyprland.lua` after the guest's Lua preferences. Empty host files preserve the guest defaults. Environment values are literal assignments, and a malformed host Lua file is ignored so it cannot prevent desktop startup. Existing guest preference files are preserved. The host environment's last valid `OMABOX_DYNAMIC_RESOLUTION=0` or `1` also takes precedence over the guest setting.
+The Mac app's Linux Configuration Files are shared separately from the optional user folder, through the read-only `omabox-config` mount at `/mnt/omabox-config`. Guest startup loads the Mac's `desktop.env` after the guest's environment preferences and its `hyprland.lua` after the guest's Lua preferences. New or empty Mac files receive a short instruction line that changes no settings. Files containing only that starter line preserve the guest defaults. Environment values are literal assignments, and a malformed host Lua file is ignored so it cannot prevent desktop startup. Existing guest preference files are preserved. The host environment's last valid `OMABOX_DYNAMIC_RESOLUTION=0` or `1` also takes precedence over the guest setting.
 
-For an existing Linux disk, finish first-owner setup, share the repository folder, then run `sudo bash /mnt/omabox/Guest/install-integration.sh` inside Linux. This installs only Omabox's services and startup integration. Shut down Linux and start it from the updated Mac app to attach the configuration share. It does not replace the disk or the guest's preference files.
+The combined updater above adds the configuration mount and display behavior to existing desktops. Starting Linux from the updated Mac app attaches the read-only configuration share.
 
 `python3 Scripts/QA/check_configuration.py` verifies configuration through a dedicated read-only share across cold boots, including empty defaults, explicit host overrides, malformed Lua, literal environment values, and guest file preservation.

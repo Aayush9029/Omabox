@@ -17,4 +17,11 @@ nonisolated enum LinuxConfigurationFile: String, CaseIterable, Sendable {
         case .desktop: "hyprland.lua"
         }
     }
+
+    var symbol: String {
+        switch self {
+        case .environment: "terminal"
+        case .desktop: "desktopcomputer"
+        }
+    }
 }
