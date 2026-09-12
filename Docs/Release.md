@@ -10,14 +10,14 @@ Patch versions advance automatically. Published commits are skipped. Manual disp
 
 | Setting | Type | Value |
 | --- | --- | --- |
-| `APPLE_CERTIFICATE_P12` | Secret | Base64 Developer ID certificate/private key; empty P12 password. |
+| `APPLE_CERTIFICATE_P12` | Secret | Base64 Developer ID certificate/private key. |
+| `APPLE_CERTIFICATE_PASSWORD` | Secret | P12 password. |
 | `APPLE_API_KEY_P8` | Secret | Base64 App Store Connect API private key. |
 | `APPLE_API_KEY_ID` | Secret | API key ID. |
 | `APPLE_API_ISSUER_ID` | Secret | API issuer ID. |
-| `OMABOX_TEAM_ID` | Variable | `4538W4A79B` |
-| `OMABOX_SIGNING_IDENTITY` | Variable | Full Developer ID Application identity name. |
+| `OMABOX_TEAM_ID` | Variable | `6Q29HJZ4AG` |
 
-Temporary signing credentials are removed afterward.
+The release job reads the signing identity from the imported certificate. Temporary signing credentials are removed afterward.
 
 ## Local packaging
 
@@ -25,8 +25,8 @@ Requires Apple silicon, macOS 26+, Xcode, Tuist 4.207.0, Python 3.9+, and 35 GB 
 
 ```sh
 export OMABOX_VERSION=0.2.0 OMABOX_BUILD_NUMBER=20
-export OMABOX_TEAM_ID=4538W4A79B
-export OMABOX_SIGNING_IDENTITY='Developer ID Application: Aayush Pokharel (4538W4A79B)'
+export OMABOX_TEAM_ID=6Q29HJZ4AG
+export OMABOX_SIGNING_IDENTITY='Developer ID Application: Optimal Life Technologies, Inc (6Q29HJZ4AG)'
 export OMABOX_NOTARY_PROFILE=omabox-notary
 python3 Scripts/fetch-release-guest.py
 bash Scripts/archive.sh

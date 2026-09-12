@@ -13,6 +13,7 @@ credential_keychain="$credential_root/release.keychain-db"
 case "${1:-}" in
     setup)
         : "${APPLE_CERTIFICATE_P12:?Missing Developer ID certificate.}"
+        : "${APPLE_CERTIFICATE_PASSWORD:?Missing Developer ID certificate password.}"
         : "${APPLE_API_KEY_P8:?Missing notarization private key.}"
         : "${APPLE_API_KEY_ID:?Missing notarization key identifier.}"
         : "${APPLE_API_ISSUER_ID:?Missing notarization issuer identifier.}"
@@ -42,7 +43,7 @@ PY
         security create-keychain -p "$credential_password" "$credential_keychain"
         security set-keychain-settings -lut 21600 "$credential_keychain"
         security unlock-keychain -p "$credential_password" "$credential_keychain"
-        security import "$credential_root/certificate.p12" -P '' -t cert -f pkcs12 \
+        security import "$credential_root/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -t cert -f pkcs12 \
             -k "$credential_keychain" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
             -k "$credential_password" "$credential_keychain" >/dev/null
@@ -54,12 +55,14 @@ with open(sys.argv[1]) as stream:
     previous = json.load(stream)
 subprocess.run(['/usr/bin/security', 'list-keychains', '-d', 'user', '-s', sys.argv[2], *previous], check=True)
 PY
+        credential_identity=$(security find-identity -v -p codesigning "$credential_keychain" | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -n 1)
+        [[ -n $credential_identity ]] || { echo 'No Developer ID Application identity was imported.' >&2; exit 1; }
         credential_profile="omabox-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
         xcrun notarytool store-credentials "$credential_profile" \
             --key "$credential_root/notary.p8" --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER_ID" --keychain "$credential_keychain" >/dev/null
-        printf 'OMABOX_KEYCHAIN_PATH=%s\nOMABOX_NOTARY_KEYCHAIN_PATH=%s\nOMABOX_NOTARY_PROFILE=%s\n' \
-            "$credential_keychain" "$credential_keychain" "$credential_profile" >> "$GITHUB_ENV"
+        printf 'OMABOX_KEYCHAIN_PATH=%s\nOMABOX_NOTARY_KEYCHAIN_PATH=%s\nOMABOX_NOTARY_PROFILE=%s\nOMABOX_SIGNING_IDENTITY=%s\n' \
+            "$credential_keychain" "$credential_keychain" "$credential_profile" "$credential_identity" >> "$GITHUB_ENV"
         ;;
     cleanup)
         [[ -d "$credential_root" ]] || exit 0

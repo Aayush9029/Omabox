@@ -20,7 +20,7 @@ release_configure() {
     command -v python3 >/dev/null || release_die 'python3 is required.'
     [[ ${OMABOX_VERSION:-} =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || release_die 'Set OMABOX_VERSION to a numeric release version, such as 0.1.0.'
     [[ ${OMABOX_BUILD_NUMBER:-} =~ ^[1-9][0-9]*$ ]] || release_die 'Set OMABOX_BUILD_NUMBER to a positive integer.'
-    release_team=${OMABOX_TEAM_ID:-4538W4A79B}
+    release_team=${OMABOX_TEAM_ID:-6Q29HJZ4AG}
     [[ $release_team =~ ^[A-Z0-9]{10}$ ]] || release_die 'OMABOX_TEAM_ID must be a ten-character Apple team identifier.'
     release_identity=${OMABOX_SIGNING_IDENTITY:-}
     [[ -n $release_identity && $release_identity != '-' ]] || release_die 'Set OMABOX_SIGNING_IDENTITY to a Developer ID Application identity or certificate SHA-1.'

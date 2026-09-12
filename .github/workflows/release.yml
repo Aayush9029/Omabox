@@ -64,8 +64,7 @@ jobs:
     env:
       OMABOX_VERSION: ${{ needs.validate.outputs.version }}
       OMABOX_BUILD_NUMBER: ${{ needs.validate.outputs.build }}
-      OMABOX_TEAM_ID: ${{ vars.OMABOX_TEAM_ID || '4538W4A79B' }}
-      OMABOX_SIGNING_IDENTITY: ${{ vars.OMABOX_SIGNING_IDENTITY }}
+      OMABOX_TEAM_ID: ${{ vars.OMABOX_TEAM_ID || '6Q29HJZ4AG' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -77,7 +76,6 @@ jobs:
           set -euo pipefail
           [[ "$RUNNER_ENVIRONMENT" == github-hosted && "$(uname -m)" == arm64 ]]
           [[ "$(sw_vers -productVersion)" == 26.* ]]
-          : "${OMABOX_SIGNING_IDENTITY:?Set OMABOX_SIGNING_IDENTITY to the Developer ID Application identity.}"
           printf 'OMABOX_ARCHIVE_PATH=%s\nOMABOX_EXPORT_PATH=%s\nOMABOX_RELEASE_PATH=%s\nOMABOX_DERIVED_DATA_PATH=%s\n' \
             "$RUNNER_TEMP/Omabox-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.xcarchive" \
             "$RUNNER_TEMP/Omabox-export-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
@@ -114,6 +112,7 @@ jobs:
       - name: Import temporary signing and notarization credentials
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
@@ -198,7 +197,7 @@ jobs:
       contents: write
       actions: read
     env:
-      OMABOX_TEAM_ID: ${{ vars.OMABOX_TEAM_ID || '4538W4A79B' }}
+      OMABOX_TEAM_ID: ${{ vars.OMABOX_TEAM_ID || '6Q29HJZ4AG' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

@@ -17,7 +17,7 @@ automation = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(automation)
 COMMIT = "a" * 40
 OTHER_COMMIT = "b" * 40
-TEAM = "4538W4A79B"
+TEAM = "6Q29HJZ4AG"
 REPOSITORY = "owner/Omabox"
 
 
