@@ -1,4 +1,4 @@
-MIT License — Omarchy, Try Omarchy, and LobeHub icons
+MIT License — Omarchy and Try Omarchy
 
 This notice applies only to these components, with their respective copyrights:
 
@@ -10,13 +10,8 @@ Try Omarchy v0.3.0 ARM factory
 Source: https://github.com/omacom/try-omarchy/tree/6aced581ad991b0a1495b74907f8a41c8a58d0b6
 License: https://raw.githubusercontent.com/omacom/try-omarchy/6aced581ad991b0a1495b74907f8a41c8a58d0b6/LICENSE
 
-LobeHub provider icons
-Source: https://github.com/lobehub/lobe-icons
-License: https://raw.githubusercontent.com/lobehub/lobe-icons/master/LICENSE
-
 Copyright (c) David Heinemeier Hansson
 Copyright (c) 2026 Try Omarchy contributors
-Copyright (c) 2023 LobeHub
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
