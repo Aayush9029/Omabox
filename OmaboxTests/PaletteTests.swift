@@ -139,8 +139,13 @@ struct PaletteTests {
             #expect(commands.contains(.shutdown))
             #expect(commands.contains(.files))
         }
-        #expect(DesktopCommand.available(in: .ready, hasInstallation: true).isEmpty)
+        let home = DesktopCommand.available(in: .ready, hasInstallation: true)
+        #expect(home.first == .start)
+        #expect(home.contains(.settings) && home.contains(.files))
+        #expect(!home.contains(.pause) && !home.contains(.shutdown) && !home.contains(.resolution))
+        #expect(DesktopCommand.available(in: .absent, hasInstallation: false) == [.start, .folder, .machine, .sharing, .shortcuts, .settings])
         #expect(DesktopCommand.available(in: .preparing, hasInstallation: false).isEmpty)
+        #expect(DesktopCommand.available(in: .starting, hasInstallation: true).isEmpty)
         #expect(!DesktopCommand.available(in: .running, hasInstallation: false).contains(.files))
     }
 

@@ -11,70 +11,67 @@ struct MachinePane: View {
         }
     }
 
+    private var cpuStops: [Int] {
+        stops([1, 2, 4, 6, 8, 10, 12, 16, 24, 32, 64], in: model.resourcePolicy.cpuRange, current: model.preferences.cpuCount)
+    }
+
+    private var memoryStops: [Int] {
+        stops([2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128], in: model.resourcePolicy.memoryRangeGiB, current: model.preferences.memoryGiB)
+    }
+
+    private var diskStops: [Int] {
+        stops([16, 24, 32, 40, 64, 96, 128, 256, 512, 1_024], in: model.resourcePolicy.diskRangeGiB, current: model.preferences.diskSizeGiB)
+    }
+
     var body: some View {
         SettingsForm {
             Section("Resources") {
-                LabeledContent("Processors") {
-                    HStack(spacing: 10) {
-                        Text("\(model.preferences.cpuCount) cores")
-                            .monospacedDigit()
-                        Stepper("Processors", value: Binding(model.$preferences.cpuCount), in: model.resourcePolicy.cpuRange)
-                            .labelsHidden()
-                            .accessibilityLabel("Processors")
-                            .accessibilityValue("\(model.preferences.cpuCount) cores")
-                            .accessibilityIdentifier("settings.cpu")
-                    }
-                    .accessibilityElement(children: .contain)
-                }
-                .accessibilityElement(children: .contain)
+                ResourceSlider(
+                    title: "Processors",
+                    stops: cpuStops,
+                    unit: { "\($0) core\($0 == 1 ? "" : "s")" },
+                    value: model.preferences.cpuCount,
+                    accessibilityID: "settings.cpu"
+                ) { value in model.$preferences.cpuCount.withLock { $0 = value } }
                 .disabled(!canChangeHardware)
 
-                LabeledContent("Memory") {
-                    HStack(spacing: 10) {
-                        Text("\(model.preferences.memoryGiB) GB")
-                            .monospacedDigit()
-                        Stepper("Memory", value: Binding(model.$preferences.memoryGiB), in: model.resourcePolicy.memoryRangeGiB)
-                            .labelsHidden()
-                            .accessibilityLabel("Memory")
-                            .accessibilityValue("\(model.preferences.memoryGiB) GB")
-                            .accessibilityIdentifier("settings.memory")
-                    }
-                    .accessibilityElement(children: .contain)
-                }
-                .accessibilityElement(children: .contain)
+                ResourceSlider(
+                    title: "Memory",
+                    stops: memoryStops,
+                    unit: { "\($0) GB" },
+                    value: model.preferences.memoryGiB,
+                    accessibilityID: "settings.memory"
+                ) { value in model.$preferences.memoryGiB.withLock { $0 = value } }
                 .disabled(!canChangeHardware)
 
                 Text(canChangeHardware
-                    ? "Leave some memory and processors for your Mac. Changes apply the next time Linux starts."
+                    ? "Up to \(model.resourcePolicy.cpuRange.upperBound) cores and \(model.resourcePolicy.memoryRangeGiB.upperBound) GB, leaving room for your Mac. Changes apply at the next start."
                     : "Shut down Linux to change its processors or memory.")
                     .settingFootnote()
             }
 
-            Section("Storage") {
-                LabeledContent("Disk capacity") {
-                    HStack(spacing: 10) {
-                        Text("\(model.preferences.diskSizeGiB) GB")
-                            .monospacedDigit()
-                        Stepper("Disk capacity", value: Binding(model.$preferences.diskSizeGiB), in: model.resourcePolicy.diskRangeGiB, step: 8)
-                            .labelsHidden()
-                            .accessibilityLabel("Disk capacity")
-                            .accessibilityValue("\(model.preferences.diskSizeGiB) GB")
-                            .accessibilityIdentifier("settings.disk")
-                    }
-                    .accessibilityElement(children: .contain)
-                }
-                .accessibilityElement(children: .contain)
+            Section("Disk") {
+                ResourceSlider(
+                    title: "Capacity",
+                    stops: diskStops,
+                    unit: { "\($0) GB" },
+                    value: model.preferences.diskSizeGiB,
+                    accessibilityID: "settings.disk"
+                ) { value in model.$preferences.diskSizeGiB.withLock { $0 = value } }
                 .disabled(model.installationURL != nil || !canChangeHardware)
-                Text("Capacity is chosen before installation. The disk uses space on your Mac as Linux writes to it.")
+                Text(model.installationURL == nil
+                    ? "Chosen before setup. The disk only takes the space Linux writes."
+                    : "Fixed after setup. The disk only takes the space Linux writes.")
                     .settingFootnote()
             }
 
             Section("Display") {
                 Picker("Scale", selection: Binding(model.$preferences.displayScale)) {
                     Text("Automatic").tag(DisplayScale.automatic)
-                    Text("Standard · 1×").tag(DisplayScale.standard)
-                    Text("Retina · 2×").tag(DisplayScale.retina)
+                    Text("1×").tag(DisplayScale.standard)
+                    Text("2×").tag(DisplayScale.retina)
                 }
+                .pickerStyle(.segmented)
                 .disabled(!canChangeHardware)
 
                 Picker("Rendering threads", selection: Binding(model.$preferences.renderThreadCount)) {
@@ -90,7 +87,7 @@ struct MachinePane: View {
                 .disabled(!canChangeHardware)
 
                 Text(canChangeHardware
-                    ? "Changes apply at the next start. Automatic scale fits the desktop when its resolution changes. Automatic rendering uses the processors assigned to Linux."
+                    ? "Automatic scale follows the window. Rendering is on the CPU, so more threads make the desktop smoother."
                     : "Shut down Linux to change its display scale or rendering threads.")
                     .settingFootnote()
             }
@@ -107,15 +104,17 @@ struct MachinePane: View {
                         Label(file.fileName, systemImage: file.symbol)
                     }
                 }
-                Text("Edit on your Mac. Saved changes apply when Linux starts and take priority over its local configuration.")
+                Text("Edited on your Mac. Saved changes apply when Linux starts and win over its local configuration.")
                     .settingFootnote()
             }
-
-            Section("Virtualization") {
-                LabeledContent("Processor architecture", value: "Apple silicon · ARM64")
-                LabeledContent("Engine", value: "Apple Virtualization")
-                LabeledContent("Networking", value: "Shared with your Mac · NAT")
-            }
         }
+    }
+
+    private func stops(_ candidates: [Int], in range: ClosedRange<Int>, current: Int) -> [Int] {
+        var values = Set(candidates.filter(range.contains))
+        values.insert(range.lowerBound)
+        values.insert(range.upperBound)
+        values.insert(current)
+        return values.sorted()
     }
 }

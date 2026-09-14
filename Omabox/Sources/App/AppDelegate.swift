@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         window.isOpaque = false
         window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
-        window.contentView = content
+        window.contentView = Self.glassContainer(for: content)
         window.delegate = self
         windowPresentation = DesktopWindowPresentation(window: window)
         window.center()
@@ -56,12 +56,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         showDesktop()
     }
 
+    /// Liquid Glass behind everything, after Flare's panel: the glass view needs its own
+    /// radius and mask, or a square plate shows at the corners.
+    private static let windowCornerRadius: CGFloat = 20
+
+    private static func glassContainer(for content: NSView) -> NSGlassEffectView {
+        content.wantsLayer = true
+        content.layer?.cornerRadius = windowCornerRadius
+        content.layer?.masksToBounds = true
+        let glass = NSGlassEffectView()
+        glass.contentView = content
+        glass.cornerRadius = windowCornerRadius
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = windowCornerRadius
+        glass.layer?.masksToBounds = true
+        return glass
+    }
+
+    private func setWindowCorners(rounded: Bool) {
+        guard let glass = desktopWindow?.contentView as? NSGlassEffectView else { return }
+        let radius: CGFloat = rounded ? Self.windowCornerRadius : 0
+        glass.cornerRadius = radius
+        glass.layer?.cornerRadius = radius
+        glass.contentView?.layer?.cornerRadius = radius
+    }
+
     func showSettings(tab: SettingsTab = .general) {
         guard let model else { return }
         let content = NSHostingView(rootView: SettingsView(model: model, initialTab: tab))
         content.sizingOptions = []
         if let settingsWindow {
-            settingsWindow.contentView = content
+            settingsWindow.contentView = Self.glassContainer(for: content)
             settingsWindow.makeKeyAndOrderFront(nil)
             NSApp.activate()
             return
@@ -79,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 660, height: 460)
-        window.contentView = content
+        window.contentView = Self.glassContainer(for: content)
         window.center()
         settingsWindow = window
         window.makeKeyAndOrderFront(nil)
@@ -131,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         NSApp.mainMenu = main
         NSApp.windowsMenu = windowMenu
         let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        status.button?.image = NSImage(systemSymbolName: "shippingbox.fill", accessibilityDescription: "Omabox")
+        status.button?.image = HomeAssets.menuBarMark ?? NSImage(systemSymbolName: "shippingbox.fill", accessibilityDescription: "Omabox")
         let statusMenu = NSMenu()
         statusMenu.addItem(withTitle: "Show Omabox", action: #selector(showDesktop), keyEquivalent: "").target = self
         statusMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: "").target = self
@@ -183,8 +208,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 onExecute: execute
             ) { return true }
         }
+        if isPaletteShortcut(event) {
+            togglePalette()
+            return true
+        }
         switch ReservedHostKeyboardCommand(event: event) {
-        case .palette where model?.state == .running || model?.state == .paused:
+        case .palette where canOpenPalette:
             togglePalette()
             return true
         case .settings:
@@ -199,8 +228,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
     }
 
+    /// ⌘K belongs to Omabox unless the desktop holds the keyboard with system keys on;
+    /// ⌃⌥⌘K always works.
+    private func isPaletteShortcut(_ event: NSEvent) -> Bool {
+        guard event.window === desktopWindow,
+              event.modifierFlags.intersection([.command, .control, .option, .shift]) == .command,
+              event.charactersIgnoringModifiers?.lowercased() == ReservedHostKeyboardCommand.paletteKeyEquivalent,
+              let model
+        else { return false }
+        let guestOwnsSystemKeys = desktopWindow?.firstResponder is GuestDisplayView && model.preferences.captureSystemKeys && model.state == .running
+        return canOpenPalette && !guestOwnsSystemKeys
+    }
+
+    private var canOpenPalette: Bool {
+        guard let model else { return false }
+        return !model.state.isBusy && !model.isChangingRunState
+    }
+
     @objc private func togglePalette() {
-        guard let model, model.state == .running || model.state == .paused else { return }
+        guard let model, canOpenPalette else { return }
         if palette.isPresented { palette.close(); return }
         showDesktop()
         if desktopWindow?.firstResponder is GuestDisplayView {
@@ -218,7 +264,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(togglePalette) || menuItem.action == #selector(releaseKeyboard) {
+        if menuItem.action == #selector(togglePalette) {
+            return canOpenPalette
+        }
+        if menuItem.action == #selector(releaseKeyboard) {
             return model?.state == .running || model?.state == .paused
         }
         if menuItem.action == #selector(togglePause) {
@@ -246,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         case .resolution:
             palette.showResolutions()
         case .releaseKeyboard: releaseKeyboard()
-        case .start: Task { await model.startButtonTapped() }
+        case .start: Task { await model.setUpOrStartButtonTapped() }
         case .pause: Task { await model.pauseButtonTapped() }
         case .resume: Task { await model.resumeButtonTapped() }
         case .shutdown: Task { await model.shutDownButtonTapped() }
@@ -350,6 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func windowDidExitFullScreen(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        setWindowCorners(rounded: true)
         windowPresentation?.didExitFullScreen()
         if let preset = pendingResolution {
             pendingResolution = nil
@@ -364,6 +414,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func windowWillEnterFullScreen(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, window === desktopWindow else { return }
+        setWindowCorners(rounded: false)
         windowPresentation?.willEnterFullScreen()
     }
 
@@ -374,6 +425,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func windowDidFailToEnterFullScreen(_ window: NSWindow) {
         guard window === desktopWindow else { return }
+        setWindowCorners(rounded: true)
         windowPresentation?.didFailToEnterFullScreen()
         if let preset = pendingResolution {
             pendingResolution = nil

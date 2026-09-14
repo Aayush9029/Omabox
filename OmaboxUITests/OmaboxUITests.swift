@@ -28,9 +28,9 @@ final class OmaboxUITests: XCTestCase {
         }
 
         selectTab("machine", in: app)
-        XCTAssertTrue(app.staticTexts["Processor architecture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Rendering threads"].waitForExistence(timeout: 5))
         selectTab("shortcuts", in: app)
-        XCTAssertTrue(app.staticTexts["Command menu"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Commands, always"].waitForExistence(timeout: 5))
         selectTab("about", in: app)
         XCTAssertTrue(app.staticTexts["Your Linux desktop, at home on your Mac."].waitForExistence(timeout: 5))
     }
@@ -137,67 +137,39 @@ final class OmaboxUITests: XCTestCase {
         assertSwitchValue(false, on: element("settings.captureSystemKeys", in: app))
     }
 
-    func testHostCommandShortcutDoesNotOpenPaletteBeforeDesktopIsRunning() {
+    func testCommandShortcutOpensPaletteOnHomeWithStartAndSettings() {
         let app = launch()
         defer { finish(app) }
 
         XCTAssertFalse(element("desktop.palette", in: app).exists)
         app.activate()
-        app.typeKey("k", modifierFlags: [.control, .option, .command])
+        app.typeKey("k", modifierFlags: .command)
+        assertHittable(element("palette.search", in: app))
+        assertHittable(element("palette.command.start", in: app))
+        XCTAssertTrue(element("palette.command.machine", in: app).exists)
+        XCTAssertFalse(element("palette.command.shutdown", in: app).exists)
+        app.typeKey(.escape, modifierFlags: [])
         XCTAssertFalse(element("palette.search", in: app).waitForExistence(timeout: 1))
         assertHittable(element("welcome.setup", in: app))
 
         openSettings(in: app)
         app.activate()
-        app.typeKey("k", modifierFlags: [.control, .option, .command])
+        app.typeKey("k", modifierFlags: .command)
         XCTAssertFalse(element("palette.search", in: app).waitForExistence(timeout: 1))
         assertHittable(element("settings.tab.general", in: app))
     }
 
-    func testHomeProcessorControlUpdatesMachineSettings() throws {
+    func testHomePaletteSettingsCommandOpensMachinePane() {
         let app = launch()
         defer { finish(app) }
 
-        let expected = try changeHomeResource("cpu", unit: "cores", in: app)
-        openSettings(in: app)
-        selectTab("machine", in: app)
-        assertResourceValue(expected, on: element("settings.cpu", in: app))
-    }
-
-    func testHomeMemoryControlUpdatesMachineSettings() throws {
-        let app = launch()
-        defer { finish(app) }
-
-        let expected = try changeHomeResource("memory", unit: "GB", in: app)
-        openSettings(in: app)
-        selectTab("machine", in: app)
-        assertResourceValue(expected, on: element("settings.memory", in: app))
-    }
-
-    func testHomeShowsDiskCapacityWithoutAnEditableDiskControl() {
-        let app = launch()
-        defer { finish(app) }
-
-        let capacity = element("home.disk.value", in: app)
-        XCTAssertTrue(capacity.waitForExistence(timeout: 5))
-        XCTAssertEqual(capacity.label, "40 GB")
-        XCTAssertTrue(app.staticTexts["Not editable"].exists)
-        XCTAssertFalse(element("home.disk", in: app).exists)
-    }
-
-    func testHomeClipboardControlUpdatesSharingSettings() {
-        let app = launch()
-        defer { finish(app) }
-
-        let clipboard = element("home.clipboardSharing", in: app)
-        assertHittable(clipboard)
-        assertSwitchValue(true, on: clipboard)
-        clipboard.click()
-        assertSwitchValue(false, on: element("home.clipboardSharing", in: app))
-
-        openSettings(in: app)
-        selectTab("sharing", in: app)
-        assertSwitchValue(false, on: element("settings.clipboardSharing", in: app))
+        let commands = element("welcome.palette", in: app)
+        assertHittable(commands)
+        commands.click()
+        let machine = element("palette.command.machine", in: app)
+        assertHittable(machine)
+        machine.click()
+        assertHittable(element("settings.cpu", in: app))
     }
 
     func testNativeSettingsAccessibilityStructure() throws {
@@ -256,49 +228,6 @@ final class OmaboxUITests: XCTestCase {
         let row = element("settings.tab.\(tab)", in: app)
         assertHittable(row)
         row.click()
-    }
-
-    private func changeHomeResource(_ resource: String, unit: String, in app: XCUIApplication) throws -> Int {
-        let displayedValue = element("home.\(resource).value", in: app)
-        XCTAssertTrue(displayedValue.waitForExistence(timeout: 5))
-        let current = try XCTUnwrap(Int(displayedValue.label.split(separator: " ").first ?? ""))
-        let prefix = "home.\(resource).preset."
-        assertValue("Selected", on: element(prefix + String(current), in: app))
-        let presets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", prefix)).allElementsBoundByIndex
-        let preset = try XCTUnwrap(presets.first {
-            $0.identifier != prefix + String(current) && $0.isEnabled && $0.isHittable
-        }, "No alternative \(resource) preset is available.")
-        let expected = try XCTUnwrap(Int(preset.identifier.dropFirst(prefix.count)))
-        assertValue("Not selected", on: preset)
-        preset.click()
-        assertValue("Selected", on: element(prefix + String(expected), in: app))
-        assertValue("Not selected", on: element(prefix + String(current), in: app))
-
-        let expectation = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "label == %@", "\(expected) \(unit)"),
-            object: element("home.\(resource).value", in: app)
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
-        return expected
-    }
-
-    private func assertResourceValue(_ expected: Int, on element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5), file: file, line: line)
-        let expectation = XCTNSPredicateExpectation(
-            predicate: NSPredicate { candidate, _ in
-                guard let control = candidate as? XCUIElement else { return false }
-                let value = control.value
-                if let number = value as? NSNumber {
-                    return number == NSNumber(value: expected)
-                }
-                if let text = value as? String {
-                    return Int(text.split(whereSeparator: \.isWhitespace).first ?? "") == expected
-                }
-                return false
-            },
-            object: element
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed, file: file, line: line)
     }
 
     private func assertHittable(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {

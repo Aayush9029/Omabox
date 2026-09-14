@@ -21,26 +21,25 @@ struct DesktopView: View {
                 if hasDesktop {
                     desktop
                 } else {
-                    WelcomeView(model: model, onSettings: onSettings)
-                        .background {
-                            VisualEffectBackground(material: .underWindowBackground)
-                                .ignoresSafeArea()
-                        }
+                    WelcomeView(model: model, onSettings: onSettings, onPalette: onPalette)
                 }
             }
             .accessibilityHidden(palette.isPresented)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PanelScrim())
+        .overlay(alignment: .top) {
             if palette.isPresented {
-                Color.black.opacity(0.12)
-                    .ignoresSafeArea()
-                    .onTapGesture { palette.close() }
                 CommandPaletteView(model: palette, onExecute: onCommand)
-                    .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.97)))
+                    .padding(.horizontal, 16)
+                    .padding(.top, hasDesktop ? 16 : 40)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.96, anchor: .top).combined(with: .opacity))
             }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: palette.isPresented)
+        .animation(reduceMotion ? nil : .bouncy(duration: 0.28), value: palette.isPresented)
         .task { await model.task() }
         .onChange(of: model.state) { _, state in
-            if state != .running && state != .paused { palette.close() }
+            if state.isBusy { palette.close() }
             controls.reveal()
         }
         .alert("Force stop Omarchy?", isPresented: $confirmsForceStop) {
@@ -109,7 +108,7 @@ struct DesktopView: View {
 
     private var commandAffordance: some View {
         Button(action: onPalette) {
-            Text("⌃ ⌥ ⌘ K")
+            Text("⌘ K")
                 .font(.callout.monospaced().weight(.medium))
                 .padding(.horizontal, 4)
         }
@@ -118,18 +117,19 @@ struct DesktopView: View {
         .controlSize(.large)
         .focused($isMenuButtonFocused)
         .onHover { isHoveringMenuButton = $0 }
-        .help("Open command menu (Control–Option–Command–K)")
-        .accessibilityLabel("Open command menu")
-        .accessibilityHint("Control–Option–Command–K")
+        .help("Open commands (⌘K, or ⌃⌥⌘K while Linux has your shortcuts)")
+        .accessibilityLabel("Open commands")
+        .accessibilityHint("Command–K")
         .accessibilityIdentifier("desktop.palette")
     }
 
     private var pausedOverlay: some View {
         ZStack {
-            Rectangle().fill(.regularMaterial).ignoresSafeArea()
-            VStack(spacing: 30) {
-                Image(systemName: "pause.fill")
-                    .font(.system(size: 64, weight: .semibold))
+            Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+            VStack(spacing: 24) {
+                Image(systemName: "pause.circle.fill")
+                    .font(.system(size: 44))
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 Button {
@@ -139,12 +139,11 @@ struct DesktopView: View {
                         if model.isBusy { ProgressView().controlSize(.small) }
                         Text("Resume")
                     }
-                    .font(.title3.weight(.semibold))
-                    .frame(minWidth: 150)
-                    .padding(.vertical, 10)
+                    .font(.callout.weight(.semibold))
+                    .frame(minWidth: 120)
+                    .padding(.vertical, 4)
                 }
                 .buttonStyle(.glassProminent)
-                .buttonBorderShape(.capsule)
                 .controlSize(.large)
                 .disabled(model.isBusy)
                 .accessibilityLabel("Resume paused desktop")
@@ -155,8 +154,8 @@ struct DesktopView: View {
 
     private var activityOverlay: some View {
         ZStack {
-            Rectangle().fill(.regularMaterial).ignoresSafeArea()
-            VStack(spacing: 16) {
+            Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+            VStack(spacing: 14) {
                 ProgressView()
                     .controlSize(.large)
                     .accessibilityIdentifier("desktop.activity")
@@ -179,7 +178,7 @@ struct DesktopView: View {
                 Button("Force Stop", role: .destructive) { confirmsForceStop = true }
             }
             .padding(16)
-            .background(.regularMaterial, in: .rect(cornerRadius: 12))
+            .glassEffect(.regular, in: .rect(cornerRadius: 14, style: .continuous))
             .accessibilityIdentifier("desktop.runtimeError")
         }
     }

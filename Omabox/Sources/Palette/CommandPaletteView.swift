@@ -8,33 +8,15 @@ struct CommandPaletteView: View {
     private let radius: CGFloat = 18
 
     var body: some View {
-        GeometryReader { geometry in
-            content
-                .frame(width: min(510, max(0, geometry.size.width - 32)), height: min(370, max(0, geometry.size.height - 32)))
-                .glassEffect(.regular, in: .rect(cornerRadius: radius))
-                .shadow(color: .black.opacity(0.4), radius: 30, y: 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onExitCommand { model.goBackOrClose() }
-    }
-
-    private var content: some View {
         VStack(spacing: 0) {
             field
             Divider().opacity(0.4)
             results
-            Divider().opacity(0.4)
-            HStack(spacing: 12) {
-                Label("Navigate", systemImage: "arrow.up.arrow.down")
-                Label(model.page == .resolutions ? "Apply" : "Open", systemImage: "return")
-                Spacer()
-                Text(model.page == .resolutions ? "esc to go back" : "esc to close")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 12)
         }
+        .frame(maxWidth: 560, maxHeight: 400)
+        .glassEffect(.regular, in: .rect(cornerRadius: radius))
+        .shadow(color: .black.opacity(0.4), radius: 30, y: 12)
+        .onExitCommand { model.goBackOrClose() }
     }
 
     private var field: some View {
@@ -44,6 +26,7 @@ struct CommandPaletteView: View {
                     Image(systemName: "chevron.left").font(.callout.weight(.semibold))
                 }
                 .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
                 .accessibilityLabel("Back to commands")
                 .accessibilityIdentifier("palette.back")
                 .help("Back (Escape)")
@@ -52,9 +35,6 @@ struct CommandPaletteView: View {
             }
             PaletteSearchField(model: model, onExecute: onExecute)
                 .id(model.presentationID)
-            if model.page == .commands {
-                Text("⌃ ⌥ ⌘ K").font(.caption.monospaced()).foregroundStyle(.tertiary)
-            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 18)
@@ -64,9 +44,12 @@ struct CommandPaletteView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 if !model.hasResults {
-                    ContentUnavailableView.search(text: model.query)
+                    Text("No commands match “\(model.query)”")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
                         .accessibilityIdentifier("palette.empty")
-                        .frame(height: 215)
                 } else {
                     resultRows
                         .padding(6)

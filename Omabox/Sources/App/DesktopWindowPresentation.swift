@@ -3,7 +3,7 @@ import OSLog
 
 @MainActor
 final class DesktopWindowPresentation {
-    static let homeSize = NSSize(width: 880, height: 560)
+    static let homeSize = NSSize(width: 720, height: 480)
     static let minimumDesktopSize = NSSize(width: 320, height: 240)
     private static let maximumDesktopSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
 

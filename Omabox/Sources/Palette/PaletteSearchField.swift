@@ -15,7 +15,7 @@ struct PaletteSearchField: NSViewRepresentable {
         field.drawsBackground = false
         field.focusRingType = .none
         field.font = .preferredFont(forTextStyle: .title2)
-        field.placeholderString = "What would you like to do?"
+        field.placeholderString = "Search commands and settings"
         field.maximumNumberOfLines = 1
         field.lineBreakMode = .byTruncatingTail
         field.cell?.usesSingleLineMode = true
@@ -27,7 +27,7 @@ struct PaletteSearchField: NSViewRepresentable {
 
     func updateNSView(_ field: PaletteTextField, context: Context) {
         context.coordinator.onExecute = onExecute
-        field.placeholderString = model.page == .resolutions ? "Find a resolution" : "What would you like to do?"
+        field.placeholderString = model.page == .resolutions ? "Find a resolution" : "Search commands and settings"
         if field.stringValue != model.query, (field.currentEditor() as? NSTextView)?.hasMarkedText() != true {
             field.stringValue = model.query
         }

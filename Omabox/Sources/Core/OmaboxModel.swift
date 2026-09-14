@@ -30,6 +30,7 @@ final class OmaboxModel {
     @ObservationIgnored private var installation: GuestInstallation?
     @ObservationIgnored private var runtime: (any VirtualMachineRuntime)?
     @ObservationIgnored private var didLoad = false
+    @ObservationIgnored private var setupTask: Task<Void, Never>?
     @ObservationIgnored private var installGeneration = 0
     @ObservationIgnored private var runtimeGeneration = 0
     private(set) var isChangingRunState = false {
@@ -70,6 +71,25 @@ final class OmaboxModel {
         } catch {
             fail(error)
         }
+    }
+
+    /// The one button on the home screen: prepares the disk when there is none, then starts.
+    func setUpOrStartButtonTapped() async {
+        setupTask?.cancel()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            if installationURL == nil {
+                await prepareButtonTapped()
+            }
+            guard !Task.isCancelled, installationURL != nil else { return }
+            await startButtonTapped()
+        }
+        setupTask = task
+        await task.value
+    }
+
+    func cancelSetupButtonTapped() {
+        setupTask?.cancel()
     }
 
     func prepareButtonTapped() async {

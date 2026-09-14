@@ -27,7 +27,7 @@ enum DesktopCommand: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .start: "Open your Linux workspace"
+        case .start: "Boot Omarchy, or set it up first"
         case .pause: "Keep your session in memory"
         case .resume: "Continue the paused session"
         case .shutdown: "Ask Linux to close your session safely"
@@ -77,9 +77,27 @@ enum DesktopCommand: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The block the row is filed under, shown at its trailing edge.
+    var section: String {
+        switch self {
+        case .start, .pause, .resume, .shutdown: "Machine"
+        case .fullScreen, .releaseKeyboard, .resolution: "Window"
+        case .folder, .files: "Sharing"
+        case .settings, .machine, .sharing, .shortcuts: "Settings"
+        }
+    }
+
     static func available(in state: VMState, hasInstallation: Bool) -> [Self] {
-        guard state == .running || state == .paused else { return [] }
-        var commands: [Self] = [state == .paused ? .resume : .pause, .shutdown, .settings, .releaseKeyboard, .resolution, .machine, .sharing, .shortcuts, .folder, .fullScreen]
+        var commands: [Self]
+        switch state {
+        case .running, .paused:
+            commands = [state == .paused ? .resume : .pause, .shutdown, .releaseKeyboard, .resolution, .fullScreen]
+        case .absent, .ready, .failed:
+            commands = [.start]
+        case .preparing, .starting, .stopping:
+            return []
+        }
+        commands += [.folder, .machine, .sharing, .shortcuts, .settings]
         if hasInstallation { commands.append(.files) }
         return commands
     }

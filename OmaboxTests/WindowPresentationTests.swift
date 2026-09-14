@@ -48,8 +48,8 @@ struct WindowPresentationTests {
         window.delegate = delegate
         host.layoutSubtreeIfNeeded()
         window.update()
-        expectNoDifference(window.frame.size, NSSize(width: 880, height: 560))
-        expectNoDifference(host.bounds.size, NSSize(width: 880, height: 560))
+        expectNoDifference(window.frame.size, DesktopWindowPresentation.homeSize)
+        expectNoDifference(host.bounds.size, DesktopWindowPresentation.homeSize)
 
         model.$preferences.cpuCount.withLock { $0 = 2 }
         model.errorMessage = "A setup failure can be shown without changing the window size."
@@ -58,10 +58,10 @@ struct WindowPresentationTests {
         host.layoutSubtreeIfNeeded()
         window.update()
 
-        expectNoDifference(window.frame.size, NSSize(width: 880, height: 560))
-        expectNoDifference(host.bounds.size, NSSize(width: 880, height: 560))
-        expectNoDifference(window.minSize, NSSize(width: 880, height: 560))
-        expectNoDifference(window.maxSize, NSSize(width: 880, height: 560))
+        expectNoDifference(window.frame.size, DesktopWindowPresentation.homeSize)
+        expectNoDifference(host.bounds.size, DesktopWindowPresentation.homeSize)
+        expectNoDifference(window.minSize, DesktopWindowPresentation.homeSize)
+        expectNoDifference(window.maxSize, DesktopWindowPresentation.homeSize)
         #expect(delegate.updateCount >= 2)
         #expect(model.virtualMachine == nil)
         #expect(!window.isVisible)
@@ -158,7 +158,7 @@ struct WindowPresentationTests {
         let window = makeWindow()
         defer { window.close() }
         let presentation = DesktopWindowPresentation(window: window, frameAutosaveName: nil)
-        expectWindowSize(window, NSSize(width: 880, height: 560))
+        expectWindowSize(window, DesktopWindowPresentation.homeSize)
         #expect(!window.styleMask.contains(.resizable))
         expectNoDifference(window.minSize, DesktopWindowPresentation.homeSize)
         expectNoDifference(window.maxSize, DesktopWindowPresentation.homeSize)
@@ -168,7 +168,7 @@ struct WindowPresentationTests {
         presentation.resizeContent(to: NSSize(width: 512, height: 320))
         expectWindowSize(window, NSSize(width: 512, height: 320))
         expectNoDifference(window.minSize, NSSize(width: 320, height: 240))
-        #expect(window.maxSize.width > 880)
+        #expect(window.maxSize.width > DesktopWindowPresentation.homeSize.width)
         #expect(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
         for type in buttons { #expect(window.standardWindowButton(type)?.isHidden == true) }
     }

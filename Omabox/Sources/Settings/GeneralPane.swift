@@ -53,15 +53,9 @@ struct GeneralPane: View {
                 }
             }
 
-            Section("Your Desktop") {
-                Toggle("Start when Omabox opens", isOn: Binding(model.$preferences.startsOnLaunch))
-                Text("Starts your installed Linux desktop when you open the app.")
-                    .settingFootnote()
-            }
-
-            Section("Appearance") {
-                LabeledContent("Theme", value: "Follows your Mac")
-                Text("Glass, colors, and contrast follow your macOS appearance and accessibility settings.")
+            Section("Machine") {
+                Toggle("Start Omarchy when Omabox opens", isOn: Binding(model.$preferences.startsOnLaunch))
+                Text("Off, the window opens on the start screen and waits.")
                     .settingFootnote()
             }
         }
