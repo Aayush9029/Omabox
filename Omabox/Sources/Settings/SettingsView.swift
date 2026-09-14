@@ -19,6 +19,8 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
                 .tag(tab)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(tab.title)
                 .accessibilityIdentifier("settings.tab.\(tab.rawValue)")
             }
             .listStyle(.sidebar)
